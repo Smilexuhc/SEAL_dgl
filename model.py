@@ -24,8 +24,8 @@ class GCN(nn.Module):
 
     """
 
-    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', attribute_dim=None, node_embedding=None,
-                 use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
+    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', attribute_dim=None,
+                 node_embedding=None, use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
         super(GCN, self).__init__()
         self.num_layers = num_layers
         self.dropout = dropout
@@ -59,7 +59,7 @@ class GCN(nn.Module):
                 self.layers.append(SAGEConv(hidden_units, hidden_units, aggregator_type='gcn'))
         else:
             raise ValueError('Gcn type error.')
-            
+
         self.linear_1 = nn.Linear(hidden_units, hidden_units)
         self.linear_2 = nn.Linear(hidden_units, 1)
 
@@ -67,12 +67,13 @@ class GCN(nn.Module):
         for layer in self.layers:
             layer.reset_parameters()
 
-    def forward(self, g, z, x=None, node_id=None, edge_weight=None):
+    def forward(self, g, z, pair_nodes, x=None, node_id=None, edge_weight=None):
         """
 
         Args:
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
+            pair_nodes(Tensor): id of two target nodes used in center pooling
             x(Tensor, optional): node attribute tensor, shape [N, dim]
             node_id(Tensor, optional): node id tensor, shape [N, 1]
             edge_weight(Tensor, optional): edge weight tensor [E, dim]
@@ -103,12 +104,17 @@ class GCN(nn.Module):
         with g.local_scope():
             g.ndata['x'] = x
             if self.pooling_type == 'center':
-                raise NotImplementedError
+                x_u = x[pair_nodes[0]]
+                x_v = x[pair_nodes[1]]
+                x = (x_u * x_v)
+                x = F.relu(self.linear_1(x))
+                x = F.dropout(x, p=self.dropout, training=self.training)
+                x = self.linear_2(x)
 
             elif self.pooling_type == 'sum':
                 x = dgl.mean_nodes(g, 'x')
                 x = F.relu(self.linear_1(x))
-                F.dropout(x,p=self.dropout,training=self.training)
+                F.dropout(x, p=self.dropout, training=self.training)
                 x = self.linear_2(x)
             else:
                 raise ValueError("Pooling type error.")

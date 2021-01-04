@@ -5,6 +5,7 @@ from scipy.sparse.csgraph import shortest_path
 import numpy as np
 import torch
 import argparse
+from ogb.linkproppred import DglLinkPropPredDataset
 
 
 def parse_arguments():
@@ -21,6 +22,20 @@ def parse_arguments():
     args = parser.parse_args()
     print(args)
     return args
+
+
+def load_dataset(dataset):
+    """
+
+    Args:
+        dataset(str):
+
+    Returns:
+
+    """
+    dataset = DglLinkPropPredDataset(name=dataset)
+    split_edge = dataset.get_edge_split()
+    graph = dataset[0]
 
 
 def load_mat(data_name, path='./data/'):
@@ -54,7 +69,7 @@ def drnl_node_labeling(subgraph, u, v):
     v_id = int((subgraph.ndata[NID] == v).nonzero())
     adj = subgraph.adj().to_dense().numpy()
 
-    dist_u = shortest_path(adj, directed=False, unweighted=True, indices=u_id)
+    dist_u = shortest_path(adj, directed=False, unweighted=True, indices=u_id)  # todo: dgl shortest_path
     dist_v = shortest_path(adj, directed=False, unweighted=True, indices=v_id)
 
     dist_sum = dist_u + dist_v

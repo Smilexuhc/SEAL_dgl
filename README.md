@@ -18,9 +18,9 @@ Yeast
 
 TODO:  
 1. Dataset prepare
-2. negative sample  (finished)
+2. negative sampling (finished)  
 3. node2vec with negative injection  
 4. subgraph sample with node labeling  (finished)
 5. gnn model (partially finished)
-6. train and test loop 
+6. train and evaluate loop 
 

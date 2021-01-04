@@ -28,9 +28,10 @@ class SEALDataLoader(object):
                                      drop_last=drop_last, pin_memory=pin_memory)
 
     def _collate(self, batch):
-        batch_graphs = dgl.batch(self.sampler.sample(batch[0]))
+        batch_graphs, batch_pair_nodes = self.sampler.sample(batch[0])
+        batch_graphs = dgl.batch(batch_graphs)
         batch_labels = batch[1]
-        return batch_graphs, batch_labels
+        return batch_graphs, batch_pair_nodes, batch_labels
 
     def __len__(self):
         """Return the number of batches of the data loader."""
@@ -44,6 +45,7 @@ class SEALSampler(object):
     """
     Sampler for SEAL in paper(no-block version)
     The  strategy is to sample all the k-hop neighbors around the two target nodes.
+    # todo: save subgraph
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
@@ -79,10 +81,13 @@ class SEALSampler(object):
             z = drnl_node_labeling(subgraph, int(target_nodes[0]), int(target_nodes[1]))
             subgraph.ndata['z'] = z
 
-        return subgraph
+        return subgraph, target_nodes
 
     def sample(self, batch):
-        subgraphs = []
+        subgraph_list = []
+        pair_nodes_list = []
         for pair_nodes in batch:
-            subgraphs.append(self.__sample_subgraph__(pair_nodes))
-        return subgraphs
+            subgraph_list.append(self.__sample_subgraph__(pair_nodes))
+            pair_nodes_list.append(pair_nodes)
+
+        return subgraph_list, torch.LongTensor(pair_nodes_list)
