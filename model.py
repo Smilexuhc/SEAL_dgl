@@ -120,6 +120,8 @@ class GCN(nn.Module):
                 raise ValueError("Pooling type error.")
 
             return x
+
+
 # class BaseRGCN(nn.Module):
 #     def __init__(self, num_nodes, h_dim, out_dim, num_rels, num_bases,
 #                  num_hidden_layers=1, dropout=0,
