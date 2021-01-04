@@ -17,9 +17,10 @@ ogbl-collab
 Yeast
 
 TODO:  
-1. negative sample  
-2. node2vec with negative injection  
-3. subgraph sample with node labeling  (finished)
-4. gnn model
-5. model evaluate  
+1. Dataset prepare
+2. negative sample  (finished)
+3. node2vec with negative injection  
+4. subgraph sample with node labeling  (finished)
+5. gnn model
+6. train and test loop 
 

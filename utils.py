@@ -4,6 +4,23 @@ from dgl import NID
 from scipy.sparse.csgraph import shortest_path
 import numpy as np
 import torch
+import argparse
+
+
+def parse_arguments():
+    """
+    Parse arguments
+    TODO: add arguments
+    """
+    parser = argparse.ArgumentParser(description='SEAL')
+    parser.add_argument("--dataset", type=str)
+    parser.add_argument('--use_gpu', type=int, default=1)
+    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch_size", type=int, default=32)
+    args = parser.parse_args()
+    print(args)
+    return args
 
 
 def load_mat(data_name, path='./data/'):
@@ -27,7 +44,7 @@ def drnl_node_labeling(subgraph, u, v):
     Extreme large graph may cause memory error.
 
     Args:
-        subgraph(DGLGraph)
+        subgraph(DGLGraph): The graph
         u(int): node id of one of target nodes
         v(int): node id of one of target nodes
     Returns:
