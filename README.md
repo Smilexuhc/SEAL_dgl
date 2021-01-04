@@ -21,6 +21,6 @@ TODO:
 2. negative sample  (finished)
 3. node2vec with negative injection  
 4. subgraph sample with node labeling  (finished)
-5. gnn model
+5. gnn model (partially finished)
 6. train and test loop 
 

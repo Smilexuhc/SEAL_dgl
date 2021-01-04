@@ -12,6 +12,7 @@ class GCN(nn.Module):
     Attributes:
         num_layers(int): num of gcn layers
         hidden_units(int): num of hidden units
+        gcn_type(str): type of gcn layer, 'gcn' for GraphConv and 'sage' for SAGEConv
         pooling_type(str): type of graph pooling to get subgraph representation
                            'sum' for sum pooling and 'center' for center pooling.
         attribute_dim(int): dimension of nodes' attributes
@@ -23,7 +24,7 @@ class GCN(nn.Module):
 
     """
 
-    def __init__(self, num_layers, hidden_units, pooling_type='center', attribute_dim=None, node_embedding=None,
+    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', attribute_dim=None, node_embedding=None,
                  use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
         super(GCN, self).__init__()
         self.num_layers = num_layers
@@ -48,10 +49,17 @@ class GCN(nn.Module):
 
         self.layers = nn.ModuleList()
 
-        self.layers.append(GraphConv(initial_dim, hidden_units))
-        for _ in range(num_layers - 1):
-            self.layers.append(GraphConv(hidden_units, hidden_units))
-
+        if gcn_type == 'gcn':
+            self.layers.append(GraphConv(initial_dim, hidden_units))
+            for _ in range(num_layers - 1):
+                self.layers.append(GraphConv(hidden_units, hidden_units))
+        elif gcn_type == 'sage':
+            self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
+            for _ in range(num_layers - 1):
+                self.layers.append(SAGEConv(hidden_units, hidden_units, aggregator_type='gcn'))
+        else:
+            raise ValueError('Gcn type error.')
+            
         self.linear_1 = nn.Linear(hidden_units, hidden_units)
         self.linear_2 = nn.Linear(hidden_units, 1)
 
