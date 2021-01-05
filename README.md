@@ -17,7 +17,7 @@ ogbl-collab
 Yeast
 
 TODO:  
-1. Dataset prepare
+1. Dataset prepare  (finished)
 2. negative sampling (finished)  
 3. node2vec with negative injection  
 4. subgraph sample with node labeling  (finished)

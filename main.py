@@ -6,7 +6,7 @@ from dgl import NID
 from torch.nn import BCEWithLogitsLoss
 
 
-def train(model, dataloader, loss_fn, optimizer,device ):
+def train(model, dataloader, loss_fn, optimizer, device):
     model.train()
 
     total_loss = 0
@@ -21,8 +21,8 @@ def train(model, dataloader, loss_fn, optimizer,device ):
         loss.backward()
         optimizer.step()
         total_loss += loss.item() * len(g)
-        
-    return total_loss/ len(dataloader)
+
+    return total_loss / len(dataloader)
 
 
 def main(args):
