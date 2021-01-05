@@ -9,7 +9,7 @@ class SEALDataLoader(object):
     """
     Data Loader of SEAL
     Attributes:
-        eids(Tensor): The edge set in graph. [2,N]
+        eids(Tensor): An edge view. [2,N]
         labels(Tensor): Tensor of labels
         batch_size(int): size of batch
         sampler(SEALSampler): sampler
@@ -19,9 +19,10 @@ class SEALDataLoader(object):
         pin_memory(bool):
     """
 
-    def __init__(self, eids, labels, batch_size, sampler, num_workers=0, shuffle=True,
+    def __init__(self, eids, labels, batch_size, sampler, split_type, split_edge, num_workers=0, shuffle=True,
                  drop_last=False, pin_memory=False):
         self.sampler = sampler
+
         dataset = TensorDataset(eids, labels)
         self.dataloader = DataLoader(dataset=dataset, collate_fn=self._collate, batch_size=batch_size, shuffle=shuffle,
                                      num_workers=num_workers,

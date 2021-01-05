@@ -31,7 +31,7 @@ def main(args):
     Args:
         args (dict):
     """
-    neg_sampler = Uniform(args['neg_samples'])
+    
 
 
 if __name__ == '__main__':
