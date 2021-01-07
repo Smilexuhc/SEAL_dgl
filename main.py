@@ -1,4 +1,3 @@
-import dgl
 from utils import parse_arguments
 from tqdm import tqdm
 from dgl import NID
@@ -8,6 +7,7 @@ import torch
 from sampler import PosNegEdgesGenerator, SEALSampler, SEALDataLoader
 from model import GCN
 import numpy as np
+from logger import LightLogging
 
 
 def train(model, dataloader, loss_fn, optimizer, device):
@@ -134,4 +134,5 @@ def main(args, print_fn=print):
 
 if __name__ == '__main__':
     args = parse_arguments()
-    main(args)
+    logger = LightLogging(log_name='SEAL', log_path='./logs')
+    main(args, logger.info)
