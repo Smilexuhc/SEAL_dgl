@@ -1,6 +1,6 @@
 import torch
 import dgl
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 from dgl import DGLGraph, NID
 from utils import drnl_node_labeling
 from dgl.dataloading.negative_sampler import Uniform
@@ -33,10 +33,10 @@ class SEALDataLoader(object):
         # todo: adjust collate func
         edges = [item[0] for item in batch]
         batch_labels = [item[1] for item in batch]
+
         batch_graphs, batch_pair_nodes = self.sampler(edges)
-        batch_graphs = dgl.batch(batch_graphs)
-        batch_pair_nodes = torch.LongTensor(batch_pair_nodes)
-        batch_labels = torch.cat(batch_labels)
+        batch_labels = torch.stack(batch_labels)
+
         return batch_graphs, batch_pair_nodes, batch_labels
 
     def __len__(self):
@@ -48,9 +48,6 @@ class SEALDataLoader(object):
 
 
 # class NegativeEdgeGenerator(object):
-#     def __init__(self):
-#         pass
-# class SplitDataset(object):
 #     def __init__(self):
 #         pass
 
@@ -134,7 +131,7 @@ class SEALSampler(object):
         u_id = int((subgraph.ndata[NID] == int(
             target_nodes[0])).nonzero())  # Each node should have unique node id in the new subgraph
         v_id = int((subgraph.ndata[NID] == int(target_nodes[1])).nonzero())
-        z = drnl_node_labeling(subgraph, int(), u_id, v_id)
+        z = drnl_node_labeling(subgraph, u_id, v_id)
         subgraph.ndata['z'] = z
 
         return subgraph, (u_id, v_id)
@@ -147,5 +144,5 @@ class SEALSampler(object):
             subgraph, pair_nodes = self.__sample_subgraph__(pair_nodes)
             subgraph_list.append(subgraph)
             pair_nodes_list.append(pair_nodes_list)
-        return subgraph_list, pair_nodes_list
 
+        return dgl.batch(subgraph_list),  torch.LongTensor(pair_nodes_list)
