@@ -10,14 +10,22 @@ from ogb.linkproppred import DglLinkPropPredDataset, Evaluator
 def parse_arguments():
     """
     Parse arguments
-    TODO: add arguments
     """
     parser = argparse.ArgumentParser(description='SEAL')
     parser.add_argument("--dataset", type=str)
     parser.add_argument('--use_gpu', type=int, default=1)
+    parser.add_argument("--hop", type=int, default=1)
+    parser.add_argument('--model', type=str, default='gcn')
+    parser.add_argument('--gcn_type', type=str, default='gcn')
+    parser.add_argument('--num_layers', type=int, default=3)
+    parser.add_argument('--hidden_units', type=int, default=128)
+    parser.add_argument('--pooling', type=str, default='center')
+    parser.add_argument('--dropout', type=str, default=0.5)
+    parser.add_argument('--hits_k', type=int, default=50)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument('--eval_steps', type=int, default=10)
     args = parser.parse_args()
 
     return args
@@ -121,8 +129,8 @@ def drnl_node_labeling(subgraph, u_id, v_id):
 
     Args:
         subgraph(DGLGraph): The graph
-        u(int): node id of one of target nodes in new subgraph
-        v(int): node id of one of target nodes in new subgraph
+        u_id(int): node id of one of target nodes in new subgraph
+        v_id(int): node id of one of target nodes in new subgraph
     Returns:
         z(Tensor): node labeling tensor
     """

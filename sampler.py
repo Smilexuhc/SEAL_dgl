@@ -47,11 +47,6 @@ class SEALDataLoader(object):
         return iter(self.dataloader)
 
 
-# class NegativeEdgeGenerator(object):
-#     def __init__(self):
-#         pass
-
-
 class PosNegEdgesGenerator(object):
     """
 
@@ -100,7 +95,6 @@ class SEALSampler(object):
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
-        use_node_label(bool, optional): set 'True' to generate node labeling for each subgraph
     """
 
     def __init__(self, graph, hop):

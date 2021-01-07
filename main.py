@@ -24,7 +24,7 @@ def train(model, dataloader, loss_fn, optimizer, device):
         loss = loss_fn(logits, labels)
         loss.backward()
         optimizer.step()
-        total_loss += loss.item() * len(g)
+        total_loss += loss.item() * g.batch_size
 
     return total_loss / len(dataloader)
 
@@ -100,6 +100,7 @@ def main(args, print_fn=print):
     loss_fn = BCEWithLogitsLoss()
     print_fn("Total parameters: {}".format(sum([p.numel() for p in parameters])))
 
+    # train and evaluate loop
     summary_val = []
     summary_test = []
     for epoch in range(args.epochs):
@@ -125,7 +126,7 @@ def main(args, print_fn=print):
             summary_val.append(val_metric)
             summary_test.append(test_metric)
 
-    summary_val = np.array(summary_val)
+    # summary_val = np.array(summary_val)
     summary_test = np.array(summary_test)
 
     print_fn("Experiment Results:")
