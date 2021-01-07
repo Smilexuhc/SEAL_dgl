@@ -61,37 +61,6 @@ def load_mat(data_name, path='./data/'):
 #     edge_index = torch.cat([edge_index, loop_index], dim=1)
 #     return edge_index
 
-class PosNegEdgesGenerator(object):
-    """
-
-    """
-
-    def __init__(self, g, split_edge, neg_samples=1, subsample_ratio=1, random_seed=2021):
-        self.neg_sampler = Uniform(neg_samples)
-        self.subsample_ratio = subsample_ratio
-        self.random_seed = random_seed
-        self.split_edge = split_edge
-        self.g = g
-
-    def __call__(self, split_type):
-        pos_edges = self.split_edge[self.split_edge]['edge'].t()
-        if split_type == 'train':
-            g = add_self_loop(self.g)
-
-            neg_edges = self.neg_sampler(g, g.edges())
-        else:
-            neg_edges = self.split_edge[split_type]['edge_neg'].t()
-
-        return self.shuffle_edges(pos_edges), self.shuffle_edges(neg_edges)
-
-    def shuffle_edges(self, edges):
-        np.random.seed(self.random_seed)
-        num_pos = edges.size(1)
-        perm = np.random.permutation(num_pos)
-        perm = perm[:int(self.subsample_ratio * num_pos)]
-        edges = edges[:, perm]
-        return edges
-
 
 def generate_pos_neg_edges(split_type, split_edge, g, neg_samples=1, subsample_ratio=1):
     """
@@ -111,7 +80,8 @@ def generate_pos_neg_edges(split_type, split_edge, g, neg_samples=1, subsample_r
     if split_type == 'train':
         g = add_self_loop(g)
         neg_sampler = Uniform(neg_samples)
-        neg_edges = neg_sampler(g, g.edges())
+        all_edges = torch.from_numpy(np.arange(g.num_edges())).long()
+        neg_edges = neg_sampler(g, all_edges)
     else:
         neg_edges = split_edge[split_type]['edge_neg'].t()
     np.random.seed(123)

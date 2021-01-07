@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dgl.nn.pytorch import GraphConv, SAGEConv
+from dgl.nn.pytorch import GraphConv, SAGEConv, SortPooling, SumPooling
 import dgl
 
 
@@ -63,6 +63,11 @@ class GCN(nn.Module):
         self.linear_1 = nn.Linear(hidden_units, hidden_units)
         self.linear_2 = nn.Linear(hidden_units, 1)
 
+        if pooling_type == 'sum':
+            self.pooling = SumPooling()
+        elif pooling_type == 'soft':
+            self.pooling = SortPooling(k=3)
+
     def reset_parameters(self):
         for layer in self.layers:
             layer.reset_parameters()
@@ -112,7 +117,7 @@ class GCN(nn.Module):
                 x = self.linear_2(x)
 
             elif self.pooling_type == 'sum':
-                x = dgl.mean_nodes(g, 'x')
+                x =self.pooling(g,x)
                 x = F.relu(self.linear_1(x))
                 F.dropout(x, p=self.dropout, training=self.training)
                 x = self.linear_2(x)

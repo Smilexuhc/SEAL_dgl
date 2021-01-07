@@ -4,6 +4,8 @@ from dgl.dataloading.negative_sampler import Uniform
 from tqdm import tqdm
 from dgl import NID
 from torch.nn import BCEWithLogitsLoss
+from utils import generate_pos_neg_edges, load_ogb_dataset
+import torch
 
 
 def train(model, dataloader, loss_fn, optimizer, device):
@@ -26,12 +28,24 @@ def train(model, dataloader, loss_fn, optimizer, device):
 
 
 def main(args):
-    """
 
-    Args:
-        args (dict):
-    """
-    
+    # Load dataset
+    if args.dataset.startswith('ogbl'):
+        graph, split_edge = load_ogb_dataset(args.dataset)
+    else:
+        raise NotImplementedError
+
+    # gpu setting
+    if args.use_gpu !=0 and torch.cuda.is_available():
+        device = 'cuda'
+    else:
+        device = 'cpu'
+
+    # generate positive and negative edges and corresponding labels
+    pos_edges, neg_edges = generate_pos_neg_edges()
+
+
+
 
 
 if __name__ == '__main__':
