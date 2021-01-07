@@ -1,6 +1,6 @@
 import dgl
 from utils import parse_arguments
-from dgl.dataloading.negative_sampler import Uniform
+from torch.utils.data import TensorDataset,ConcatDataset,IterableDataset
 from tqdm import tqdm
 from dgl import NID
 from torch.nn import BCEWithLogitsLoss
@@ -42,7 +42,7 @@ def main(args):
         device = 'cpu'
 
     # generate positive and negative edges and corresponding labels
-    pos_edges, neg_edges = generate_pos_neg_edges()
+
 
 
 

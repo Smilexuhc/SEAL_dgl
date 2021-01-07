@@ -1,6 +1,6 @@
 import scipy.sparse as ssp
 import os.path as osp
-from dgl import NID
+
 from scipy.sparse.csgraph import shortest_path
 import numpy as np
 import torch
@@ -115,7 +115,7 @@ def add_val_edges_as_train_collab(graph, split_edge):
     raise NotImplementedError
 
 
-def drnl_node_labeling(subgraph, u, v):
+def drnl_node_labeling(subgraph, u_id, v_id):
     """
     Double Radius Node labeling
     d = r(i,u)+r(i,v)
@@ -124,13 +124,12 @@ def drnl_node_labeling(subgraph, u, v):
 
     Args:
         subgraph(DGLGraph): The graph
-        u(int): node id of one of target nodes
-        v(int): node id of one of target nodes
+        u(int): node id of one of target nodes in new subgraph
+        v(int): node id of one of target nodes in new subgraph
     Returns:
         z(Tensor): node labeling tensor
     """
-    u_id = int((subgraph.ndata[NID] == u).nonzero())  # Each node should have unique node id in the new subgraph
-    v_id = int((subgraph.ndata[NID] == v).nonzero())
+
     adj = subgraph.adj().to_dense().numpy()
 
     dist_u = shortest_path(adj, directed=False, unweighted=True, indices=u_id)  # todo: dgl shortest_path

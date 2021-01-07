@@ -5,6 +5,7 @@ from dgl.nn.pytorch import GraphConv, SAGEConv, SortPooling, SumPooling
 import dgl
 
 
+
 class GCN(nn.Module):
     """
     GCN Model
