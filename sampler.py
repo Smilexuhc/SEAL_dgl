@@ -31,6 +31,7 @@ class SEALDataLoader(object):
 
     def _collate(self, batch):
         # todo: adjust collate func
+
         edges = [item[0] for item in batch]
         batch_labels = [item[1] for item in batch]
 
@@ -121,10 +122,10 @@ class SEALSampler(object):
 
         sample_nodes = torch.cat(sample_nodes)
         subgraph = dgl.node_subgraph(self.graph, sample_nodes)
-
-        u_id = int((subgraph.ndata[NID] == int(
-            target_nodes[0])).nonzero())  # Each node should have unique node id in the new subgraph
+        # Each node should have unique node id in the new subgraph
+        u_id = int((subgraph.ndata[NID] == int(target_nodes[0])).nonzero())
         v_id = int((subgraph.ndata[NID] == int(target_nodes[1])).nonzero())
+
         z = drnl_node_labeling(subgraph, u_id, v_id)
         subgraph.ndata['z'] = z
 
@@ -140,3 +141,5 @@ class SEALSampler(object):
             pair_nodes_list.append(pair_nodes_list)
 
         return dgl.batch(subgraph_list),  torch.LongTensor(pair_nodes_list)
+
+

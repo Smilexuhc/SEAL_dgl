@@ -75,9 +75,9 @@ def main(args, print_fn=print):
     # set data loader
     sampler = SEALSampler(graph, hop=args.hop)
 
-    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler)
-    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler)
-    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler)
+    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
+    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
+    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
 
     # set model
     if args.model == 'gcn':
