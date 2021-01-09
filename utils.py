@@ -12,9 +12,9 @@ def parse_arguments():
     Parse arguments
     """
     parser = argparse.ArgumentParser(description='SEAL')
-    parser.add_argument("--dataset", type=str, default='ogbl-collab')
+    parser.add_argument('--dataset', type=str, default='ogbl-collab')
     parser.add_argument('--gpu_id', type=int, default=0)
-    parser.add_argument("--hop", type=int, default=1)
+    parser.add_argument('--hop', type=int, default=1)
     parser.add_argument('--model', type=str, default='gcn')
     parser.add_argument('--gcn_type', type=str, default='gcn')
     parser.add_argument('--num_layers', type=int, default=3)
@@ -28,9 +28,10 @@ def parse_arguments():
     # parser.add_argument('--val_subsample_ratio', type=float, default=1.0)
     # parser.add_argument('--test_subsample_ratio', type=float, default=1.0)
     parser.add_argument('--subsample_ratio', type=float, default=1.0)
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--random_seed', type=int, default=2021)
     args = parser.parse_args()
 

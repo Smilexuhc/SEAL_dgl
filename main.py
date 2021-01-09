@@ -31,18 +31,22 @@ def train(model, dataloader, loss_fn, optimizer, device):
 
 
 def test_data_loader(dataloader, device, epochs=15, print_fn=print):
+    print_fn("Data loader size: {}".format(len(dataloader)))
     start_time = time.time()
     for epoch in range(epochs):
-        t0 = time.time()
-        for g, pair_nodes, labels in dataloader:
+        epoch_start = time.time()
+        for index, (g, pair_nodes, labels) in enumerate(dataloader):
             g = g.to(device)
             pair_nodes = pair_nodes.to(device)
             labels = labels.to(device)
-        t1 = time.time()
-        print_fn("Epoch-{}: {:.1f}s".format(epoch, t1 - t0))
+
+            # if index % 100 == 0:
+            #     print_fn("Batch-{}, graph_size: {:.0f}, cost time: {}s".format(index, g.num_nodes() / g.batch_size,
+            #                                                                    time.time() - epoch_start))
+        print_fn("Epoch-{}: {:.1f}s".format(epoch, time.time() - epoch_start))
 
     end_time = time.time()
-    print_fn("Total {} epochs, mean cost time: {}".format(epochs, (start_time - end_time) / epochs))
+    print_fn("Total {} epochs, mean cost time: {:.1f}s".format(epochs, (start_time - end_time) / epochs))
 
 
 def evaluate(model, dataloader, device):
@@ -66,7 +70,7 @@ def evaluate(model, dataloader, device):
 
 
 def main(args, print_fn=print):
-    print_fn("Experiments arguments: {}".format(args))
+    print_fn("Experiment arguments: {}".format(args))
 
     if args.random_seed:
         torch.manual_seed(args.random_seed)
@@ -97,9 +101,12 @@ def main(args, print_fn=print):
     # set data loader
     sampler = SEALSampler(graph, hop=args.hop)
 
-    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
-    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
-    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
+    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size,
+                                  sampler=sampler, num_workers=args.num_workers)
+    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size,
+                                sampler=sampler, num_workers=args.num_workers)
+    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size,
+                                 sampler=sampler, num_workers=args.num_workers)
 
     # test_data_loader(train_loader, print_fn=print_fn)
     # raise ValueError('END')
