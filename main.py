@@ -30,6 +30,19 @@ def train(model, dataloader, loss_fn, optimizer, device):
     return total_loss / len(dataloader)
 
 
+def test_data_loader(dataloader, epochs=15, print_fn=print):
+    start_time = time.time()
+    for epoch in epochs:
+        t0 = time.time()
+        for batch in dataloader:
+            pass
+        t1 = time.time()
+        print_fn("Epoch-{}: {:.1f}s".format(epoch, t1 - t0))
+
+    end_time = time.time()
+    print_fn("Total {} epochs, mean cost time: {}".format(epochs, (start_time - end_time) / epochs))
+
+
 def evaluate(model, dataloader, device):
     model.eval()
 
@@ -79,6 +92,8 @@ def main(args, print_fn=print):
     train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
     val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
     test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
+
+    # test_data_loader(train_loader, print_fn=print_fn)
 
     # set model
     if args.model == 'gcn':
