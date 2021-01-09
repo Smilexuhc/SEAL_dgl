@@ -13,7 +13,7 @@ def parse_arguments():
     """
     parser = argparse.ArgumentParser(description='SEAL')
     parser.add_argument("--dataset", type=str, default='ogbl-collab')
-    parser.add_argument('--use_gpu', type=int, default=1)
+    parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument("--hop", type=int, default=1)
     parser.add_argument('--model', type=str, default='gcn')
     parser.add_argument('--gcn_type', type=str, default='gcn')
@@ -31,6 +31,7 @@ def parse_arguments():
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--random_seed', type=int, default=2021)
     args = parser.parse_args()
 
     return args
@@ -154,7 +155,7 @@ def drnl_node_labeling(subgraph, u_id, v_id):
     z = 1 + torch.min(dist_u, dist_v) + dist_div_2 * (dist_div_2 + dist_mod_2 - 1)
     z[u_id] = 1
     z[v_id] = 1
-    z[np.isnan(z)] = 0
+    z[torch.isnan(z)] = 0
 
     return z.long()
 

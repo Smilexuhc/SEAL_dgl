@@ -30,12 +30,14 @@ def train(model, dataloader, loss_fn, optimizer, device):
     return total_loss / len(dataloader)
 
 
-def test_data_loader(dataloader, epochs=15, print_fn=print):
+def test_data_loader(dataloader, device, epochs=15, print_fn=print):
     start_time = time.time()
     for epoch in range(epochs):
         t0 = time.time()
-        for batch in dataloader:
-            pass
+        for g, pair_nodes, labels in dataloader:
+            g = g.to(device)
+            pair_nodes = pair_nodes.to(device)
+            labels = labels.to(device)
         t1 = time.time()
         print_fn("Epoch-{}: {:.1f}s".format(epoch, t1 - t0))
 
@@ -65,6 +67,11 @@ def evaluate(model, dataloader, device):
 
 def main(args, print_fn=print):
     print_fn("Experiments arguments: {}".format(args))
+
+    if args.random_seed:
+        torch.manual_seed(args.random_seed)
+    else:
+        torch.manual_seed(2021)
     # Load dataset
     if args.dataset.startswith('ogbl'):
         graph, split_edge = load_ogb_dataset(args.dataset)
@@ -75,8 +82,8 @@ def main(args, print_fn=print):
     num_nodes = graph.num_nodes()
 
     # set gpu
-    if args.use_gpu != 0 and torch.cuda.is_available():
-        device = 'cuda'
+    if args.gpu_id >= 0 and torch.cuda.is_available():
+        device = 'cuda:{}'.format(args.gpu_id)
     else:
         device = 'cpu'
 
@@ -90,11 +97,12 @@ def main(args, print_fn=print):
     # set data loader
     sampler = SEALSampler(graph, hop=args.hop)
 
-    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
-    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
-    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=16)
+    train_loader = SEALDataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
+    val_loader = SEALDataLoader(val_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
+    test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size, sampler=sampler, num_workers=1)
 
     # test_data_loader(train_loader, print_fn=print_fn)
+    # raise ValueError('END')
 
     # set model
     if args.model == 'gcn':

@@ -124,6 +124,7 @@ class SEALSampler(object):
         sample_nodes = torch.unique(sample_nodes)
         subgraph = dgl.node_subgraph(self.graph, sample_nodes)
         # Each node should have unique node id in the new subgraph
+        # set as_tuple to prevent warning(torch 1.6.0)
         u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
         v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
 
@@ -139,6 +140,6 @@ class SEALSampler(object):
         for pair_nodes in edges:
             subgraph, pair_nodes = self.__sample_subgraph__(pair_nodes)
             subgraph_list.append(subgraph)
-            pair_nodes_list.append(pair_nodes_list)
+            pair_nodes_list.append(pair_nodes)
 
         return dgl.batch(subgraph_list), torch.LongTensor(pair_nodes_list)
