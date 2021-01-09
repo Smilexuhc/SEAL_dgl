@@ -8,6 +8,7 @@ from sampler import PosNegEdgesGenerator, SEALSampler, SEALDataLoader
 from model import GCN
 import numpy as np
 from logger import LightLogging
+import time
 
 
 def train(model, dataloader, loss_fn, optimizer, device):
@@ -104,12 +105,13 @@ def main(args, print_fn=print):
     summary_val = []
     summary_test = []
     for epoch in range(args.epochs):
-
+        start_time = time.time()
         loss = train(model=model,
                      dataloader=train_loader,
                      loss_fn=loss_fn,
                      optimizer=optimizer,
                      device=device)
+        train_time = time.time()
         if epoch % args.eval_steps == 0:
             val_pos_pred, val_neg_pred = evaluate(model=model,
                                                   dataloader=val_loader,
@@ -120,9 +122,11 @@ def main(args, print_fn=print):
 
             val_metric = evaluate_hits(args.dataset, val_pos_pred, val_neg_pred, args.hits_k)
             test_metric = evaluate_hits(args.dataset, test_pos_pred, test_neg_pred, args.hits_k)
-
-            print_fn("Epoch-{}, train loss: {:.4f}, hits@{}: val-{:.4f}, test-{:.4f}".format(epoch, loss, args.hits_k,
-                                                                                             val_metric, test_metric))
+            evaluate_time = time.time()
+            print_fn("Epoch-{}, train loss: {:.4f}, hits@{}: val-{:.4f}, test-{:.4f}, "
+                     "cost time: train-{:.1f}s, total-{:.1f}s".format(epoch, loss, args.hits_k, val_metric, test_metric,
+                                                                      train_time - start_time,
+                                                                      evaluate_time - start_time))
             summary_val.append(val_metric)
             summary_test.append(test_metric)
 
