@@ -12,7 +12,7 @@ def parse_arguments():
     Parse arguments
     """
     parser = argparse.ArgumentParser(description='SEAL')
-    parser.add_argument("--dataset", type=str)
+    parser.add_argument("--dataset", type=str, default='ogbl-collab')
     parser.add_argument('--use_gpu', type=int, default=1)
     parser.add_argument("--hop", type=int, default=1)
     parser.add_argument('--model', type=str, default='gcn')
@@ -23,9 +23,11 @@ def parse_arguments():
     parser.add_argument('--dropout', type=str, default=0.5)
     parser.add_argument('--hits_k', type=int, default=50)
     parser.add_argument('--lr', type=float, default=0.0001)
-    parser.add_argument('--train_subsample_ratio', type=float, default=1.0)
-    parser.add_argument('--val_subsample_ratio', type=float, default=1.0)
-    parser.add_argument('--test_subsample_ratio', type=float, default=1.0)
+    parser.add_argument('--neg_samples', type=int, default=1)
+    # parser.add_argument('--train_subsample_ratio', type=float, default=1.0)
+    # parser.add_argument('--val_subsample_ratio', type=float, default=1.0)
+    # parser.add_argument('--test_subsample_ratio', type=float, default=1.0)
+    parser.add_argument('--subsample_ratio', type=float, default=1.0)
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument('--eval_steps', type=int, default=10)
@@ -128,6 +130,7 @@ def drnl_node_labeling(subgraph, u_id, v_id):
     Double Radius Node labeling
     d = r(i,u)+r(i,v)
     label = 1+ min(r(i,u),r(i,v))+ (d//2)*(d//2+d%2-1)
+    Isolated nodes in subgraph will be set as zero.
     Extreme large graph may cause memory error.
 
     Args:
@@ -140,18 +143,20 @@ def drnl_node_labeling(subgraph, u_id, v_id):
 
     adj = subgraph.adj().to_dense().numpy()
 
-    dist_u = shortest_path(adj, directed=False, unweighted=True, indices=u_id)  # todo: dgl shortest_path
+    dist_u = shortest_path(adj, directed=False, unweighted=True, indices=u_id)
     dist_v = shortest_path(adj, directed=False, unweighted=True, indices=v_id)
 
+    dist_u = torch.from_numpy(dist_u)
+    dist_v = torch.from_numpy(dist_v)
     dist_sum = dist_u + dist_v
     dist_div_2, dist_mod_2 = dist_sum // 2, dist_sum % 2
 
-    z = 1 + np.min(dist_u, dist_v) + dist_div_2 * (dist_div_2 + dist_mod_2 - 1)
+    z = 1 + torch.min(dist_u, dist_v) + dist_div_2 * (dist_div_2 + dist_mod_2 - 1)
     z[u_id] = 1
     z[v_id] = 1
     z[np.isnan(z)] = 0
 
-    return torch.from_numpy(z).to(torch.long)
+    return z.long()
 
 
 def evaluate_hits(name, pos_pred, neg_pred, K):

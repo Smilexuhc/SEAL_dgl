@@ -62,15 +62,15 @@ class PosNegEdgesGenerator(object):
         self.return_type = return_type
 
     def __call__(self, split_type):
-        pos_edges = self.split_edge[self.split_edge]['edge']
+        pos_edges = self.split_edge[split_type]['edge']
         if split_type == 'train':
             g = add_self_loop(self.g)
             eids = torch.from_numpy(np.arange(g.num_edges())).long()
             neg_edges = torch.stack(self.neg_sampler(g, eids), dim=1)
         else:
             neg_edges = self.split_edge[split_type]['edge_neg']
-        pos_edges = torch.from_numpy(self.subsample(pos_edges)).long()
-        neg_edges = torch.from_numpy(self.subsample(neg_edges)).long()
+        pos_edges = self.subsample(pos_edges).long()
+        neg_edges = self.subsample(neg_edges).long()
 
         if self.return_type == 'split':
             return pos_edges, torch.ones(pos_edges.size(0)), neg_edges, torch.zeros(neg_edges.size(0))
@@ -115,16 +115,17 @@ class SEALSampler(object):
         sample_nodes = [target_nodes]
         frontiers = target_nodes
 
-        for i in range(len(self.hop)):
+        for i in range(self.hop):
             frontiers = self.graph.in_edges(frontiers)[0]
             frontiers = torch.unique(frontiers)
             sample_nodes.append(frontiers)
 
         sample_nodes = torch.cat(sample_nodes)
+        sample_nodes = torch.unique(sample_nodes)
         subgraph = dgl.node_subgraph(self.graph, sample_nodes)
         # Each node should have unique node id in the new subgraph
-        u_id = int((subgraph.ndata[NID] == int(target_nodes[0])).nonzero())
-        v_id = int((subgraph.ndata[NID] == int(target_nodes[1])).nonzero())
+        u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
+        v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
 
         z = drnl_node_labeling(subgraph, u_id, v_id)
         subgraph.ndata['z'] = z
@@ -140,6 +141,4 @@ class SEALSampler(object):
             subgraph_list.append(subgraph)
             pair_nodes_list.append(pair_nodes_list)
 
-        return dgl.batch(subgraph_list),  torch.LongTensor(pair_nodes_list)
-
-
+        return dgl.batch(subgraph_list), torch.LongTensor(pair_nodes_list)

@@ -32,7 +32,7 @@ def train(model, dataloader, loss_fn, optimizer, device):
 
 def test_data_loader(dataloader, epochs=15, print_fn=print):
     start_time = time.time()
-    for epoch in epochs:
+    for epoch in range(epochs):
         t0 = time.time()
         for batch in dataloader:
             pass
@@ -64,6 +64,7 @@ def evaluate(model, dataloader, device):
 
 
 def main(args, print_fn=print):
+    print_fn("Experiments arguments: {}".format(args))
     # Load dataset
     if args.dataset.startswith('ogbl'):
         graph, split_edge = load_ogb_dataset(args.dataset)
