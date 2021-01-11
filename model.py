@@ -126,6 +126,19 @@ class DGCNN(nn.Module):
     An end-to-end deep learning architecture for graph classification.
     paper link: https://muhanzhang.github.io/papers/AAAI_2018_DGCNN.pdf
     todo: rewrite the conv part
+
+    Attributes:
+        num_layers(int): num of gcn layers
+        hidden_units(int): num of hidden units
+        k(int, optional): The number of nodes to hold for each graph in SortPooling.
+        gcn_type(str): type of gcn layer, 'gcn' for GraphConv and 'sage' for SAGEConv
+        attribute_dim(int): dimension of nodes' attributes
+        node_embedding(Tensor, optional): pre-trained node embedding
+        use_embedding(bool, optional): whether to use node embedding. Note that if 'use_embedding' is set True
+                             and 'node_embedding' is None, will automatically randomly initialize node embedding.
+        num_nodes(int, optional): num of nodes
+        dropout(float, optional): dropout rate
+        max_z(int, optional): default max vocab size of node labeling, default 1000.
     """
 
     def __init__(self, num_layers, hidden_units, k=10, gcn_type='gcn', attribute_dim=None,
