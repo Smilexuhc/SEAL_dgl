@@ -21,7 +21,7 @@ def train(model, dataloader, loss_fn, optimizer, device):
         pair_nodes = pair_nodes.to(device)
         labels = labels.to(device)
 
-        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata['edge_weight'])
+        logits = model(g, g.ndata['z'], pair_nodes, g.ndata['feat'],g.ndata[NID], g.edata['edge_weight'])
         loss = loss_fn(logits, labels)
         loss.backward()
         optimizer.step()
@@ -107,7 +107,7 @@ def main(args, print_fn=print):
                                 sampler=sampler, num_workers=args.num_workers)
     test_loader = SEALDataLoader(test_dataset, batch_size=args.batch_size,
                                  sampler=sampler, num_workers=args.num_workers)
-
+    # print_fn('Start testing speed of data loader')
     # test_data_loader(train_loader, print_fn=print_fn)
     # raise ValueError('END')
 
@@ -127,10 +127,12 @@ def main(args, print_fn=print):
     else:
         raise ValueError('Model error')
 
+    model = model.to(device)
     parameters = model.parameters()
     optimizer = torch.optim.Adam(parameters, lr=args.lr)
     loss_fn = BCEWithLogitsLoss()
-    print_fn("Total parameters: {}".format(sum([p.numel() for p in parameters])))
+    # use variable parameters cause bug
+    print_fn("Total parameters: {}".format(sum([p.numel() for p in model.parameters()])))
 
     # train and evaluate loop
     summary_val = []
