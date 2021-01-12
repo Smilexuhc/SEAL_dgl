@@ -6,6 +6,23 @@ from utils import drnl_node_labeling
 from dgl.dataloading.negative_sampler import Uniform
 from dgl import add_self_loop
 import numpy as np
+import os.path as osp
+from tqdm import tqdm
+
+
+class GraphDataSet(object):
+    """
+    GraphDataset for torch DataLoader
+    """
+    def __init__(self, graph_list, *tensors):
+        self.graph_list = graph_list
+        self.tensors = tensors
+
+    def __len__(self):
+        return len(self.graph_list)
+
+    def __getitem__(self, index):
+        return [self.graph_list[index]]+[tensor[index] for tensor in self.tensors]
 
 
 class SEALDataLoader(object):
@@ -32,12 +49,13 @@ class SEALDataLoader(object):
     def _collate(self, batch):
         # todo: adjust collate func
 
-        edges = [item[0] for item in batch]
+        batch_graphs = [item[0] for item in batch]
         batch_labels = [item[1] for item in batch]
+        batch_pair_nodes = [item[2] for item in batch]
 
-        batch_graphs, batch_pair_nodes = self.sampler(edges)
+        batch_graphs = dgl.batch(batch_graphs)
         batch_labels = torch.stack(batch_labels)
-
+        batch_pair_nodes = torch.stack(batch_pair_nodes)
         return batch_graphs, batch_pair_nodes, batch_labels
 
     def __len__(self):
@@ -96,12 +114,28 @@ class SEALSampler(object):
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
+        save_dir:
     """
 
-    def __init__(self, graph, hop):
+    def __init__(self, graph, hop, edges, labels=None, save_dir=None, print_fn=print()):
         self.graph = graph
         self.hop = hop
         # self.use_node_label = use_node_label
+
+        self.filename = '{}_{}-hop.bin'.format(self.__class__.__name__.lower(), self.hop)
+        path = osp.join(save_dir or '', self.filename)
+        if save_dir is not None and osp.exists(path):
+            print_fn("Load preprocessed subgraph and features list.")
+            self.subgraph_list, data = dgl.load_graphs(path)
+            self.labels = data['y']
+            self.pair_nodes = data['pair_nodes']
+        else:
+            print_fn("Start sampling subgraph.")
+            self.labels = labels
+            self.subgraph_list, self.pair_nodes = self.sample()
+            if save_dir is not None:
+                print_fn("Save preprocessed subgraph: {}".format(path))
+                dgl.save_graphs(path, self.subgraph_list, {'y': labels, 'pair_nodes': self.pair_nodes})
 
     def __sample_subgraph__(self, target_nodes):
         """
@@ -133,13 +167,13 @@ class SEALSampler(object):
 
         return subgraph, (u_id, v_id)
 
-    def __call__(self, edges):
+    def sample(self):
         subgraph_list = []
         pair_nodes_list = []
 
-        for pair_nodes in edges:
+        for pair_nodes in tqdm(self.edges):
             subgraph, pair_nodes = self.__sample_subgraph__(pair_nodes)
             subgraph_list.append(subgraph)
             pair_nodes_list.append(pair_nodes)
 
-        return dgl.batch(subgraph_list), torch.LongTensor(pair_nodes_list)
+        return subgraph_list, torch.LongTensor(pair_nodes_list)
