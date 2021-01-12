@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from dgl.nn.pytorch import GraphConv, SAGEConv, SortPooling, SumPooling
+from dgl.nn.pytorch import SortPooling, SumPooling
+from gcn_layers import GraphConv, SageConv
 
 
 class GCN(nn.Module):
@@ -54,7 +55,7 @@ class GCN(nn.Module):
             for _ in range(num_layers - 1):
                 self.layers.append(GraphConv(hidden_units, hidden_units, weight=False))
         elif gcn_type == 'sage':
-            self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn',))
+            self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn', ))
             for _ in range(num_layers - 1):
                 self.layers.append(SAGEConv(hidden_units, hidden_units, aggregator_type='gcn'))
         else:
