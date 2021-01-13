@@ -177,7 +177,7 @@ class GraphConv(nn.Module):
         """
         self._allow_zero_in_degree = set_value
 
-    def forward(self, graph, feat, edge_weight, weight=None):
+    def forward(self, graph, feat, edge_weight=None, weight=None):
         r"""
         Description
         -----------
@@ -432,7 +432,7 @@ class SAGEConv(nn.Module):
         _, (rst, _) = self.lstm(m, h)
         return {'neigh': rst.squeeze(0)}
 
-    def forward(self, graph, feat, edge_weight):
+    def forward(self, graph, feat, edge_weight=None):
         r"""
 
         Description
@@ -449,7 +449,8 @@ class SAGEConv(nn.Module):
             where :math:`D_{in}` is size of input feature, :math:`N` is the number of nodes.
             If a pair of torch.Tensor is given, the pair must contain two tensors of shape
             :math:`(N_{in}, D_{in_{src}})` and :math:`(N_{out}, D_{in_{dst}})`.
-
+        edge_weight : torch.Tensor of shape (E, 1)
+            Edge weights, E for the number of edges.
         Returns
         -------
         torch.Tensor
