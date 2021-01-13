@@ -98,7 +98,7 @@ def main(args, print_fn=print):
     test_edges, test_labels = sample_generator('test')
 
     # Set sampler
-    sampler = SEALSampler(graph, hop=args.hop)
+    sampler = SEALSampler(graph, hop=args.hop, prefix=args.dataset, save_dir='./processed', print_fn=print_fn)
     train_graph_list, train_pair_nodes, train_labels = sampler('train', train_edges, train_labels)
     val_graph_list, val_pair_nodes, val_labels = sampler('val', val_edges, val_labels)
     test_graph_list, test_pair_nodes, test_labels = sampler('test', test_edges, test_labels)
