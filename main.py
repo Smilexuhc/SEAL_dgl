@@ -1,10 +1,10 @@
 from utils import parse_arguments
 from tqdm import tqdm
-from dgl import NID
+from dgl import NID, EID
 from torch.nn import BCEWithLogitsLoss
 from utils import load_ogb_dataset, evaluate_hits
 import torch
-from sampler import PosNegEdgesGenerator, SEALSampler, SEALDataLoader
+from sampler import SEALData, SEALDataLoader
 from model import GCN
 import numpy as np
 from logger import LightLogging
@@ -15,13 +15,12 @@ def train(model, dataloader, loss_fn, optimizer, device):
     model.train()
 
     total_loss = 0
-    pbar = tqdm(dataloader, ncols=70)
-    for g, pair_nodes, labels in pbar:
+    for g, pair_nodes, labels in tqdm(dataloader):
         g = g.to(device)
         pair_nodes = pair_nodes.to(device)
         labels = labels.to(device)
 
-        logits = model(g, g.ndata['z'], pair_nodes, g.ndata['feat'], g.ndata[NID], g.edata['edge_weight'])
+        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
         loss = loss_fn(logits, labels)
         loss.backward()
         optimizer.step()
@@ -58,7 +57,7 @@ def evaluate(model, dataloader, device):
         pair_nodes = pair_nodes.to(device)
         labels = labels.to(device)
 
-        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata['edge_weight'])
+        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
         y_pred.append(logits.view(-1).cpu())
         y_true.append(labels.y.view(-1).cpu().to(torch.float))
 
@@ -91,25 +90,34 @@ def main(args, print_fn=print):
     else:
         device = 'cpu'
 
-    # Generate positive and negative edges and corresponding labels
-    sample_generator = PosNegEdgesGenerator(graph, split_edge, args.neg_samples, args.subsample_ratio)
-    train_edges, train_labels = sample_generator('train')
-    val_edges, val_labels = sample_generator('valid')
-    test_edges, test_labels = sample_generator('test')
+    # # Generate positive and negative edges and corresponding labels
+    # sample_generator = PosNegEdgesGenerator(graph, split_edge, args.neg_samples, args.subsample_ratio)
+    # train_edges, train_labels = sample_generator('train')
+    # val_edges, val_labels = sample_generator('valid')
+    # test_edges, test_labels = sample_generator('test')
+    #
+    # # Set sampler
+    # sampler = SEALSampler(graph, hop=args.hop, num_workers=args.num_workers,
+    #                       prefix=args.dataset, save_dir='./processed', print_fn=print_fn)
+    # train_graph_list, train_pair_nodes, train_labels = sampler('train', train_edges, train_labels)
+    # val_graph_list, val_pair_nodes, val_labels = sampler('test', val_edges, val_labels)
+    # test_graph_list, test_pair_nodes, test_labels = sampler('test', test_edges, test_labels)
 
-    # Set sampler
-    sampler = SEALSampler(graph, hop=args.hop, prefix=args.dataset, save_dir='./processed', print_fn=print_fn)
-    train_graph_list, train_pair_nodes, train_labels = sampler('train', train_edges, train_labels)
-    val_graph_list, val_pair_nodes, val_labels = sampler('val', val_edges, val_labels)
-    test_graph_list, test_pair_nodes, test_labels = sampler('test', test_edges, test_labels)
+    # Generate positive and negative edges and corresponding labels
+    # Sampling subgraphs and generate node labeling features
+
+    seal_data = SEALData(g=graph, split_edge=split_edge, hop=args.hop, neg_samples=args.neg_samples,
+                         subsample_ratio=args.subsample_ratio, prefix=args.dataset, save_dir='./processed',
+                         num_workers=args.num_workers, print_fn=print_fn)
+
+    train_data = seal_data('train')
+    val_data = seal_data('valid')
+    test_data = seal_data('test')
 
     # Set data loader
-    train_loader = SEALDataLoader(train_graph_list, train_pair_nodes, train_labels,
-                                  batch_size=args.batch_size, num_workers=args.num_workers)
-    val_loader = SEALDataLoader(val_graph_list, val_pair_nodes, val_labels,
-                                batch_size=args.batch_size, num_workers=args.num_workers)
-    test_loader = SEALDataLoader(test_graph_list, test_pair_nodes, test_labels,
-                                 batch_size=args.batch_size, num_workers=args.num_workers)
+    train_loader = SEALDataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers)
+    val_loader = SEALDataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers)
+    test_loader = SEALDataLoader(test_data, batch_size=args.batch_size, num_workers=args.num_workers)
     # print_fn('Start testing speed of data loader')
     # test_data_loader(train_loader, print_fn=print_fn)
     # raise ValueError('END')

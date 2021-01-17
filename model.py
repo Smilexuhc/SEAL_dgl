@@ -82,13 +82,12 @@ class GCN(nn.Module):
         """
 
         Args:
+
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
             pair_nodes(Tensor): id of two target nodes used in center pooling
-            x(Tensor, optional): node attribute tensor, shape [N, dim]
             node_id(Tensor, optional): node id tensor, shape [N, 1]
-            edge_weight(Tensor, optional): edge weight tensor [E, dim]
-
+            edge_id(Tensor, optional): edge id tensor, shape [E, 1]
         Returns:
             x(Tensor)
 
@@ -213,6 +212,19 @@ class DGCNN(nn.Module):
         self.linear_2 = nn.Linear(128, 1)
 
     def forward(self, g, z, pair_nodes=None, node_id=None, edge_id=None):
+        """
+
+        Args:
+
+            g(DGLGraph): the graph
+            z(Tensor): node labeling tensor, shape [N, 1]
+            pair_nodes(Tensor): id of two target nodes used in center pooling
+            node_id(Tensor, optional): node id tensor, shape [N, 1]
+            edge_id(Tensor, optional): edge id tensor, shape [E, 1]
+        Returns:
+            x(Tensor)
+
+        """
         z_emb = self.z_embedding(z)
 
         if self.use_attribute:
