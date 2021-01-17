@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from dgl.nn.pytorch import SortPooling, SumPooling
-from gcn_layers import GraphConv, SageConv
+from gcn_layers import GraphConv, SAGEConv
 
 
 class GCN(nn.Module):
@@ -25,26 +25,33 @@ class GCN(nn.Module):
 
     """
 
-    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', attribute_dim=None,
-                 node_embedding=None, use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
+    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', node_attributes=None,
+                 edge_weights=None, node_embedding=None, use_embedding=False,
+                 num_nodes=None, dropout=0.5, max_z=1000):
         super(GCN, self).__init__()
         self.num_layers = num_layers
         self.dropout = dropout
         self.pooling_type = pooling_type
-        self.use_attribute = False if attribute_dim is None else True
+        self.use_attribute = False if node_attributes is None else True
         self.use_embedding = use_embedding
+        self.use_edge_weight = False if edge_weights is None else True
 
         self.z_embedding = nn.Embedding(max_z, hidden_units)
-
+        if node_attributes is not None:
+            self.node_attributes_lookup = nn.Embedding.from_pretrained(node_attributes)
+            self.node_attributes_lookup.weight.requires_grad = False
+        if edge_weights is not None:
+            self.edge_weights_lookup = nn.Embedding.from_pretrained(edge_weights)
+            self.edge_weights_lookup.weight.requires_grad = False
         if node_embedding is not None:
             self.node_embedding = nn.Embedding.from_pretrained(node_embedding)
+            self.node_embedding.weight.requires_grad = False
         elif use_embedding:
             self.node_embedding = nn.Embedding(num_nodes, hidden_units)
 
         initial_dim = hidden_units
-
         if self.use_attribute:
-            initial_dim += attribute_dim
+            initial_dim += self.node_attributes_lookup.embedding_dim
         if self.use_embedding:
             initial_dim += self.node_embedding.embedding_dim
 
@@ -71,7 +78,7 @@ class GCN(nn.Module):
         for layer in self.layers:
             layer.reset_parameters()
 
-    def forward(self, g, z, pair_nodes=None, x=None, node_id=None, edge_weight=None):
+    def forward(self, g, z, pair_nodes=None, node_id=None, edge_id=None):
         """
 
         Args:
@@ -92,10 +99,16 @@ class GCN(nn.Module):
         # if z_emb.ndim == 3:  # in case z has multiple integer labels
         #     z_emb = z_emb.sum(dim=1)
 
-        if self.use_attribute and x is not None:
+        if self.use_attribute:
+            x = self.node_attributes_lookup(node_id)
             x = torch.cat([z_emb, x], 1)
         else:
             x = z_emb
+
+        if self.use_edge_weight:
+            edge_weight = self.edge_weights_lookup(edge_id)
+        else:
+            edge_weight = None
 
         if self.use_embedding:
             n_emb = self.node_embedding(node_id)
@@ -142,25 +155,33 @@ class DGCNN(nn.Module):
         max_z(int, optional): default max vocab size of node labeling, default 1000.
     """
 
-    def __init__(self, num_layers, hidden_units, k=10, gcn_type='gcn', attribute_dim=None,
-                 node_embedding=None, use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
+    def __init__(self, num_layers, hidden_units, k=10, gcn_type='gcn', node_attributes=None,
+                 edge_weights=None, node_embedding=None, use_embedding=False, num_nodes=None, dropout=0.5, max_z=1000):
         super(DGCNN, self).__init__()
         self.num_layers = num_layers
         self.dropout = dropout
-        self.use_attribute = False if attribute_dim is None else True
+        self.use_attribute = False if node_attributes is None else True
         self.use_embedding = use_embedding
+        self.use_edge_weight = False if edge_weights is None else True
 
         self.z_embedding = nn.Embedding(max_z, hidden_units)
 
+        self.z_embedding = nn.Embedding(max_z, hidden_units)
+        if node_attributes is not None:
+            self.node_attributes_lookup = nn.Embedding.from_pretrained(node_attributes)
+            self.node_attributes_lookup.weight.requires_grad = False
+        if edge_weights is not None:
+            self.edge_weights_lookup = nn.Embedding.from_pretrained(edge_weights)
+            self.edge_weights_lookup.weight.requires_grad = False
         if node_embedding is not None:
             self.node_embedding = nn.Embedding.from_pretrained(node_embedding)
+            self.node_embedding.weight.requires_grad = False
         elif use_embedding:
             self.node_embedding = nn.Embedding(num_nodes, hidden_units)
 
         initial_dim = hidden_units
-
         if self.use_attribute:
-            initial_dim += attribute_dim
+            initial_dim += self.node_attributes_lookup.embedding_dim
         if self.use_embedding:
             initial_dim += self.node_embedding.embedding_dim
 
@@ -191,13 +212,19 @@ class DGCNN(nn.Module):
         self.linear_1 = nn.Linear(dense_dim, 128)
         self.linear_2 = nn.Linear(128, 1)
 
-    def forward(self, g, z, pair_nodes=None, x=None, node_id=None, edge_weight=None):
+    def forward(self, g, z, pair_nodes=None, node_id=None, edge_id=None):
         z_emb = self.z_embedding(z)
 
-        if self.use_attribute and x is not None:
+        if self.use_attribute:
+            x = self.node_attributes_lookup(node_id)
             x = torch.cat([z_emb, x], 1)
         else:
             x = z_emb
+
+        if self.use_edge_weight:
+            edge_weight = self.edge_weights_lookup(edge_id)
+        else:
+            edge_weight = None
 
         if self.use_embedding:
             n_emb = self.node_embedding(node_id)
