@@ -94,6 +94,12 @@ class PosNegEdgesGenerator(object):
         self.shuffle = shuffle
 
     def __call__(self, split_type):
+
+        if split_type == 'train':
+            subsample_ratio = self.subsample_ratio
+        else:
+            subsample_ratio = 1
+
         pos_edges = self.split_edge[split_type]['edge']
         if split_type == 'train':
             g = add_self_loop(self.g)
@@ -101,25 +107,25 @@ class PosNegEdgesGenerator(object):
             neg_edges = torch.stack(self.neg_sampler(g, eids), dim=1)
         else:
             neg_edges = self.split_edge[split_type]['edge_neg']
-        pos_edges = self.subsample(pos_edges).long()
-        neg_edges = self.subsample(neg_edges).long()
+        pos_edges = self.subsample(pos_edges, subsample_ratio).long()
+        neg_edges = self.subsample(neg_edges, subsample_ratio).long()
 
         if self.return_type == 'split':
             return pos_edges, torch.ones(pos_edges.size(0)), neg_edges, torch.zeros(neg_edges.size(0))
         elif self.return_type == 'combine':
             edges = torch.cat([pos_edges, neg_edges])
-            labels = torch.cat([torch.ones(pos_edges.size(0)), torch.zeros(neg_edges.size(0))])
+            labels = torch.cat([torch.ones(pos_edges.size(0), 1), torch.zeros(neg_edges.size(0), 1)])
             if self.shuffle:
                 perm = torch.randperm(edges.size(0))
                 edges = edges[perm]
                 labels = labels[perm]
             return edges, labels
 
-    def subsample(self, edges):
+    def subsample(self, edges, subsample_ratio):
 
         num_pos = edges.size(0)
         perm = torch.randperm(num_pos)
-        perm = perm[:int(self.subsample_ratio * num_pos)]
+        perm = perm[:int(subsample_ratio * num_pos)]
         edges = edges[perm]
         return edges
 
@@ -412,18 +418,20 @@ class SEALData(object):
 
         if split_type == 'train':
             num_parts = self.num_parts
+            subsample_ratio = self.subsample_ratio
         else:
             num_parts = 1
+            subsample_ratio = 1
 
         if num_parts != 1:
             path = ['{}_{}_{}-hop_{}-subsample-part{}.bin'.format(self.prefix, split_type, self.hop,
-                                                                  self.subsample_ratio, i) for i in
+                                                                  subsample_ratio, i) for i in
                     range(self.num_parts)]
             path = [osp.join(self.save_dir or '', p) for p in path]
         else:
             path = [osp.join(self.save_dir or '', '{}_{}_{}-hop_{}-subsample.bin'.format(self.prefix, split_type,
                                                                                          self.hop,
-                                                                                         self.subsample_ratio))]
+                                                                                         subsample_ratio))]
 
         if all([osp.exists(p) for p in path]):
             self.print_fn("{} processed files exist".format(split_type.capitalize()))

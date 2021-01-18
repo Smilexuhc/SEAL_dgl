@@ -59,7 +59,7 @@ def evaluate(model, dataloader, device):
 
         logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
         y_pred.append(logits.view(-1).cpu())
-        y_true.append(labels.y.view(-1).cpu().to(torch.float))
+        y_true.append(labels.view(-1).cpu().to(torch.float))
 
     y_pred, y_true = torch.cat(y_pred), torch.cat(y_true)
     pos_pred = y_pred[y_true == 1]

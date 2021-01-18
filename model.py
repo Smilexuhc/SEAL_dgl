@@ -120,8 +120,8 @@ class GCN(nn.Module):
         x = self.layers[-1](g, x, edge_weight)
 
         if self.pooling_type == 'center':
-            x_u = x[pair_nodes[0]]
-            x_v = x[pair_nodes[1]]
+            x_u = x[pair_nodes[:, 0]]
+            x_v = x[pair_nodes[:, 1]]
             x = (x_u * x_v)
 
         elif self.pooling_type == 'sum':
