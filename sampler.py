@@ -60,13 +60,15 @@ class SEALDataLoader(object):
                                      drop_last=drop_last, pin_memory=pin_memory)
 
     def _collate(self, batch):
-        batch_graphs = [item[0] for item in batch]
-        batch_labels = [item[1] for item in batch]
-        batch_pair_nodes = [item[2] for item in batch]
+        # batch_graphs = [item[0] for item in batch]
+        # batch_pair_nodes = [item[1] for item in batch]
+        # batch_labels = [item[2] for item in batch]
+
+        batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
-        batch_labels = torch.stack(batch_labels)
         batch_pair_nodes = torch.stack(batch_pair_nodes)
+        batch_labels = torch.stack(batch_labels)
         return batch_graphs, batch_pair_nodes, batch_labels
 
     def __len__(self):
@@ -110,7 +112,7 @@ class PosNegEdgesGenerator(object):
             if self.shuffle:
                 perm = torch.randperm(edges.size(0))
                 edges = edges[perm]
-                labels = edges[perm]
+                labels = labels[perm]
             return edges, labels
 
     def subsample(self, edges):
