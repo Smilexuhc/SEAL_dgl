@@ -109,6 +109,8 @@ def main(args, print_fn=print):
     seal_data = SEALData(g=graph, split_edge=split_edge, hop=args.hop, neg_samples=args.neg_samples,
                          subsample_ratio=args.subsample_ratio, prefix=args.dataset, save_dir='./processed',
                          num_workers=args.num_workers, print_fn=print_fn)
+    node_attribute = seal_data.ndata['feat']
+    edge_weight = seal_data.edata['edge_weight'].float()
 
     train_data = seal_data('train')
     val_data = seal_data('valid')
@@ -128,7 +130,8 @@ def main(args, print_fn=print):
                     hidden_units=args.hidden_units,
                     gcn_type=args.gcn_type,
                     pooling_type=args.pooling,
-                    attribute_dim=attribute_dim,
+                    node_attributes=node_attribute,
+                    edge_weights=edge_weight,
                     node_embedding=None,
                     use_embedding=True,
                     num_nodes=num_nodes,

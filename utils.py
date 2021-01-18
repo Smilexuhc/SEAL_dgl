@@ -31,7 +31,7 @@ def parse_arguments():
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--eval_steps', type=int, default=10)
-    parser.add_argument('--num_workers', type=int, default=8)
+    parser.add_argument('--num_workers', type=int, default=32)
     parser.add_argument('--random_seed', type=int, default=2021)
     args = parser.parse_args()
 

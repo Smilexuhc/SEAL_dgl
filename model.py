@@ -58,9 +58,9 @@ class GCN(nn.Module):
         self.layers = nn.ModuleList()
 
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units, weight=False))
+            self.layers.append(GraphConv(initial_dim, hidden_units))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units, weight=False))
+                self.layers.append(GraphConv(hidden_units, hidden_units))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn', ))
             for _ in range(num_layers - 1):
@@ -187,9 +187,9 @@ class DGCNN(nn.Module):
         self.layers = nn.ModuleList()
 
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units, weight=False))
+            self.layers.append(GraphConv(initial_dim, hidden_units))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units, weight=False))
+                self.layers.append(GraphConv(hidden_units, hidden_units))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):

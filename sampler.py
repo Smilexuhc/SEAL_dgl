@@ -49,7 +49,7 @@ class SEALDataLoader(object):
             graph_list = data['graph_list']
             pair_nodes = data['pair_nodes']
             labels = data['labels']
-            dataset = GraphDataSet(graph_list,pair_nodes,labels)
+            dataset = GraphDataSet(graph_list, pair_nodes, labels)
         elif isinstance(data, list):
             raise NotImplementedError
         else:
@@ -155,8 +155,7 @@ class SEALSampler(object):
         self.graph = graph
         self.hop = hop
         # self.use_node_label = use_node_label
-        self.prefix = prefix or ''
-        self.save_dir = save_dir
+        # self.save_dir = save_dir
         self.print_fn = print_fn
         self.num_workers = num_workers
         self.num_parts = num_parts
@@ -211,19 +210,19 @@ class SEALSampler(object):
 
         return subgraph_list, torch.cat(pair_nodes_list)
 
-    def __call__(self, split_type, edges=None, labels=None):
+    def __call__(self, split_type, path, edges=None, labels=None):
 
         if split_type == 'train':
             num_parts = self.num_parts
         else:
             num_parts = 1
 
-        if num_parts != 1:
-            path = ['{}_{}_{}-hop-part{}.bin'.format(self.prefix, split_type, self.hop, i) for i in
-                    range(num_parts)]
-            path = [osp.join(self.save_dir or '', p) for p in path]
-        else:
-            path = [osp.join(self.save_dir or '', '{}_{}_{}-hop.bin'.format(self.prefix, split_type, self.hop))]
+        # if num_parts != 1:
+        #     path = ['{}_{}_{}-hop-part{}.bin'.format(self.prefix, split_type, self.hop, i) for i in
+        #             range(num_parts)]
+        #     path = [osp.join(self.save_dir or '', p) for p in path]
+        # else:
+        #     path = [osp.join(self.save_dir or '', '{}_{}_{}-hop.bin'.format(self.prefix, split_type, self.hop))]
 
         self.print_fn("Start sampling subgraph.")
         self.print_fn('Using {} workers in sampling job.'.format(self.num_workers))
@@ -378,6 +377,7 @@ class SEALData(object):
                  num_workers=32, shuffle=True, print_fn=print):
         self.g = g
         self.hop = hop
+        self.subsample_ratio = subsample_ratio
         self.prefix = prefix
         self.save_dir = save_dir
         self.print_fn = print_fn
@@ -390,6 +390,8 @@ class SEALData(object):
         self.edata = {k: v for k, v in self.g.edata.items()}
         self.g.ndata.clear()
         self.g.edata.clear()
+        self.print_fn("Save ndata and edata in class.")
+        self.print_fn("Clear ndata and edata in graph.")
 
         self.generator = PosNegEdgesGenerator(g=self.g,
                                               split_edge=split_edge,
@@ -400,7 +402,6 @@ class SEALData(object):
 
         self.sampler = SEALSampler(graph=self.g,
                                    hop=hop,
-                                   save_dir=save_dir,
                                    num_workers=num_workers,
                                    num_parts=self.num_parts,
                                    print_fn=print_fn)
@@ -413,17 +414,21 @@ class SEALData(object):
             num_parts = 1
 
         if num_parts != 1:
-            path = ['{}_{}_{}-hop-part{}.bin'.format(self.prefix, split_type, self.hop, i) for i in
+            path = ['{}_{}_{}-hop_{}-subsample-part{}.bin'.format(self.prefix, split_type, self.hop,
+                                                                  self.subsample_ratio, i) for i in
                     range(self.num_parts)]
             path = [osp.join(self.save_dir or '', p) for p in path]
         else:
-            path = [osp.join(self.save_dir or '', '{}_{}_{}-hop.bin'.format(self.prefix, split_type, self.hop))]
+            path = [osp.join(self.save_dir or '', '{}_{}_{}-hop_{}-subsample.bin'.format(self.prefix, split_type,
+                                                                                         self.hop,
+                                                                                         self.subsample_ratio))]
 
         if all([osp.exists(p) for p in path]):
+            self.print_fn("{} processed files exist".format(split_type.capitalize()))
             if num_parts == 1:
                 tmp = dgl.load_graphs(path[0])
                 data = {'graph_list': tmp[0]}
-                for k, v in tmp[0].items():
+                for k, v in tmp[1].items():
                     data[k] = v
                 return data
             else:
@@ -436,4 +441,4 @@ class SEALData(object):
             self.print_fn("Generate {} edges totally.".format(edges.size(0)))
             if num_parts > 1:
                 print("{}-hop subgraph too large, partition to {} files".format(self.hop, num_parts))
-            return self.sampler(split_type, edges, labels)
+            return self.sampler(split_type, path, edges, labels)
