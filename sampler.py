@@ -434,7 +434,7 @@ class SEALData(object):
                                                                                          subsample_ratio))]
 
         if all([osp.exists(p) for p in path]):
-            self.print_fn("{} processed files exist".format(split_type.capitalize()))
+            self.print_fn("Load existing processed {} files".format(split_type))
             if num_parts == 1:
                 tmp = dgl.load_graphs(path[0])
                 data = {'graph_list': tmp[0]}
@@ -445,7 +445,7 @@ class SEALData(object):
                 return path
         else:
 
-            self.print_fn("Processed files not exist.")
+            self.print_fn("Processed {} files not exist.".format(split_type))
 
             edges, labels = self.generator(split_type)
             self.print_fn("Generate {} edges totally.".format(edges.size(0)))
