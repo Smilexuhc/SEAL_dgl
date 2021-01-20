@@ -123,4 +123,4 @@ def evaluate_hits(name, pos_pred, neg_pred, K):
         'y_pred_neg': neg_pred,
     })[f'hits@{K}']
 
-    return hits
+    return hits*100

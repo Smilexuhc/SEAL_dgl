@@ -206,7 +206,7 @@ class DGCNN(nn.Module):
         self.maxpool1d = nn.MaxPool1d(2, 2)
         self.conv_2 = nn.Conv1d(conv1d_channels[0], conv1d_channels[1],
                                 conv1d_kws[1], 1)
-        dense_dim = int((self.k - 2) / 2 + 1)
+        dense_dim = int((k - 2) / 2)
         dense_dim = (dense_dim - conv1d_kws[1] + 1) * conv1d_channels[1]
         self.linear_1 = nn.Linear(dense_dim, 128)
         self.linear_2 = nn.Linear(128, 1)
@@ -251,6 +251,7 @@ class DGCNN(nn.Module):
 
         # SortPooling
         x = self.pooling(g, x)
+        x = x.unsqueeze(1)
         x = F.relu(self.conv_1(x))
         x = self.maxpool1d(x)
         x = F.relu(self.conv_2(x))

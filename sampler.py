@@ -135,16 +135,17 @@ class EdgeDataSet(Dataset):
     Assistant Dataset for speeding up the SEALSampler
     """
 
-    def __init__(self, edges, transform):
+    def __init__(self, edges, labels, transform):
         self.edges = edges
         self.transform = transform
+        self.labels = labels
 
     def __len__(self):
         return len(self.edges)
 
     def __getitem__(self, index):
         graphs, pair_nodes = self.transform(self.edges[index])
-        return (graphs, torch.LongTensor(pair_nodes))
+        return (graphs, torch.LongTensor(pair_nodes), self.labels[index])
 
 
 class SEALSampler(object):
@@ -198,25 +199,33 @@ class SEALSampler(object):
 
         return subgraph, (u_id, v_id)
 
-    def _collate(self, items):
+    def _collate(self, batch):
 
-        return dgl.batch([item[0] for item in items]), torch.stack([item[1] for item in items])
+        batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
 
-    def sample(self, edges):
+        batch_graphs = dgl.batch(batch_graphs)
+        batch_pair_nodes = torch.stack(batch_pair_nodes)
+        batch_labels = torch.stack(batch_labels)
+        return batch_graphs, batch_pair_nodes, batch_labels
+
+    def sample(self, edges, labels):
         subgraph_list = []
         pair_nodes_list = []
-        edge_dataset = EdgeDataSet(edges, transform=self.sample_subgraph)
+        labels_list = []
+        edge_dataset = EdgeDataSet(edges,labels,transform=self.sample_subgraph)
 
         sampler = DataLoader(edge_dataset, batch_size=3 * self.num_workers, num_workers=self.num_workers,
                              shuffle=False, collate_fn=self._collate)
-        for subgraph, pair_nodes in tqdm(sampler, ncols=70):
+        for subgraph, pair_nodes, labels in tqdm(sampler, ncols=70):
             subgraph = dgl.unbatch(subgraph)
             pair_nodes_copy = deepcopy(pair_nodes)
-            del pair_nodes
+            labels_copy = deepcopy(labels)
+            del pair_nodes, labels
             subgraph_list += subgraph
             pair_nodes_list.append(pair_nodes_copy)
+            labels_list.append(labels_copy)
 
-        return subgraph_list, torch.cat(pair_nodes_list)
+        return subgraph_list, torch.cat(pair_nodes_list), torch.cat(labels_list)
 
     def __call__(self, split_type, path, edges=None, labels=None):
 
@@ -239,19 +248,19 @@ class SEALSampler(object):
             data = dict()
         batch_size = len(edges) // num_parts + 1
         for i in range(num_parts):
-
+            batch_start = i*batch_size
+            batch_end = batch_start+batch_size
             if osp.exists(path[i]):
                 self.print_fn('Part {} exists.'.format(i))
             else:
-
-                batch_labels = labels[i * batch_size:i * batch_size + batch_size]
-                subgraph_list, pair_nodes = self.sample(edges[i * batch_size:i * batch_size + batch_size])
+                subgraph_list, pair_nodes, batch_labels = self.sample(edges[batch_start:batch_end],
+                                                                      labels[batch_start:batch_end])
 
                 dgl.save_graphs(path[i], subgraph_list, {'labels': batch_labels, 'pair_nodes': pair_nodes})
                 if num_parts == 1:
                     data['graph_list'] = subgraph_list
                     data['pair_nodes'] = pair_nodes
-                    data['labels'] = labels
+                    data['labels'] = batch_labels
         self.print_fn("Save preprocessed subgraph to {}".format(path))
 
         if num_parts == 1:

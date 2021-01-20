@@ -5,7 +5,7 @@ from torch.nn import BCEWithLogitsLoss
 from utils import load_ogb_dataset, evaluate_hits
 import torch
 from sampler import SEALData, SEALDataLoader
-from model import GCN
+from model import GCN, DGCNN
 import numpy as np
 from logger import LightLogging
 import time
@@ -15,7 +15,7 @@ def train(model, dataloader, loss_fn, optimizer, device):
     model.train()
 
     total_loss = 0
-    for g, pair_nodes, labels in tqdm(dataloader):
+    for g, pair_nodes, labels in tqdm(dataloader, ncols=100):
         g = g.to(device)
         pair_nodes = pair_nodes.to(device)
         labels = labels.to(device)
@@ -48,14 +48,14 @@ def test_data_loader(dataloader, device, epochs=15, print_fn=print):
     print_fn("Total {} epochs, mean cost time: {:.1f}s".format(epochs, (start_time - end_time) / epochs))
 
 
+@torch.no_grad()
 def evaluate(model, dataloader, device):
     model.eval()
 
     y_pred, y_true = [], []
-    for g, pair_nodes, labels in tqdm(dataloader, ncols=70):
+    for g, pair_nodes, labels in tqdm(dataloader, ncols=100):
         g = g.to(device)
         pair_nodes = pair_nodes.to(device)
-        labels = labels.to(device)
 
         logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
         y_pred.append(logits.view(-1).cpu())
@@ -137,7 +137,15 @@ def main(args, print_fn=print):
                     num_nodes=num_nodes,
                     dropout=args.dropout)
     elif args.model == 'dgcnn':
-        raise NotImplementedError
+        model = DGCNN(num_layers=args.num_layers,
+                      hidden_units=args.hidden_units,
+                      gcn_type=args.gcn_type,
+                      node_attributes=node_attribute,
+                      edge_weights=edge_weight,
+                      node_embedding=None,
+                      use_embedding=True,
+                      num_nodes=num_nodes,
+                      dropout=args.dropout)
     else:
         raise ValueError('Model error')
 
@@ -145,7 +153,7 @@ def main(args, print_fn=print):
     parameters = model.parameters()
     optimizer = torch.optim.Adam(parameters, lr=args.lr)
     loss_fn = BCEWithLogitsLoss()
-    # use variable parameters cause bug
+    # use variable parameters may cause bug
     print_fn("Total parameters: {}".format(sum([p.numel() for p in model.parameters()])))
 
     # train and evaluate loop
