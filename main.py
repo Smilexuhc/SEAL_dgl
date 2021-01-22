@@ -11,7 +11,7 @@ from logger import LightLogging
 import time
 
 
-def train(model, dataloader, loss_fn, optimizer, device):
+def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
     model.train()
 
     total_loss = 0
@@ -24,7 +24,7 @@ def train(model, dataloader, loss_fn, optimizer, device):
         loss = loss_fn(logits, labels)
         loss.backward()
         optimizer.step()
-        total_loss += loss.item() * g.batch_size
+        total_loss += loss.item() * num_graphs
 
     return total_loss / len(dataloader)
 
@@ -90,24 +90,11 @@ def main(args, print_fn=print):
     else:
         device = 'cpu'
 
-    # # Generate positive and negative edges and corresponding labels
-    # sample_generator = PosNegEdgesGenerator(graph, split_edge, args.neg_samples, args.subsample_ratio)
-    # train_edges, train_labels = sample_generator('train')
-    # val_edges, val_labels = sample_generator('valid')
-    # test_edges, test_labels = sample_generator('test')
-    #
-    # # Set sampler
-    # sampler = SEALSampler(graph, hop=args.hop, num_workers=args.num_workers,
-    #                       prefix=args.dataset, save_dir='./processed', print_fn=print_fn)
-    # train_graph_list, train_pair_nodes, train_labels = sampler('train', train_edges, train_labels)
-    # val_graph_list, val_pair_nodes, val_labels = sampler('test', val_edges, val_labels)
-    # test_graph_list, test_pair_nodes, test_labels = sampler('test', test_edges, test_labels)
-
     # Generate positive and negative edges and corresponding labels
     # Sampling subgraphs and generate node labeling features
 
     seal_data = SEALData(g=graph, split_edge=split_edge, hop=args.hop, neg_samples=args.neg_samples,
-                         subsample_ratio=args.subsample_ratio, prefix=args.dataset, save_dir='./processed',
+                         subsample_ratio=args.subsample_ratio, prefix=args.dataset, save_dir=args.save_dir,
                          num_workers=args.num_workers, print_fn=print_fn)
     node_attribute = seal_data.ndata['feat']
     edge_weight = seal_data.edata['edge_weight'].float()
@@ -139,6 +126,7 @@ def main(args, print_fn=print):
     elif args.model == 'dgcnn':
         model = DGCNN(num_layers=args.num_layers,
                       hidden_units=args.hidden_units,
+                      k=args.sort_k,
                       gcn_type=args.gcn_type,
                       node_attributes=node_attribute,
                       edge_weights=edge_weight,
@@ -165,7 +153,8 @@ def main(args, print_fn=print):
                      dataloader=train_loader,
                      loss_fn=loss_fn,
                      optimizer=optimizer,
-                     device=device)
+                     device=device,
+                     num_graphs=args.batch_size)
         train_time = time.time()
         if epoch % args.eval_steps == 0:
             val_pos_pred, val_neg_pred = evaluate(model=model,

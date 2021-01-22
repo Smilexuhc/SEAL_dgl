@@ -103,7 +103,7 @@ class PosNegEdgesGenerator(object):
         pos_edges = self.split_edge[split_type]['edge']
         if split_type == 'train':
             g = add_self_loop(self.g)
-            eids = torch.from_numpy(np.arange(g.num_edges())).long()
+            eids = g.edge_ids(pos_edges[:, 0], pos_edges[:, 1])
             neg_edges = torch.stack(self.neg_sampler(g, eids), dim=1)
         else:
             neg_edges = self.split_edge[split_type]['edge_neg']
@@ -212,7 +212,7 @@ class SEALSampler(object):
         subgraph_list = []
         pair_nodes_list = []
         labels_list = []
-        edge_dataset = EdgeDataSet(edges,labels,transform=self.sample_subgraph)
+        edge_dataset = EdgeDataSet(edges, labels, transform=self.sample_subgraph)
 
         sampler = DataLoader(edge_dataset, batch_size=3 * self.num_workers, num_workers=self.num_workers,
                              shuffle=False, collate_fn=self._collate)
@@ -248,8 +248,8 @@ class SEALSampler(object):
             data = dict()
         batch_size = len(edges) // num_parts + 1
         for i in range(num_parts):
-            batch_start = i*batch_size
-            batch_end = batch_start+batch_size
+            batch_start = i * batch_size
+            batch_end = batch_start + batch_size
             if osp.exists(path[i]):
                 self.print_fn('Part {} exists.'.format(i))
             else:

@@ -25,7 +25,7 @@ class GCN(nn.Module):
 
     """
 
-    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='center', node_attributes=None,
+    def __init__(self, num_layers, hidden_units, gcn_type='gcn', pooling_type='sum', node_attributes=None,
                  edge_weights=None, node_embedding=None, use_embedding=False,
                  num_nodes=None, dropout=0.5, max_z=1000):
         super(GCN, self).__init__()
@@ -61,10 +61,12 @@ class GCN(nn.Module):
             self.layers.append(GraphConv(initial_dim, hidden_units))
             for _ in range(num_layers - 1):
                 self.layers.append(GraphConv(hidden_units, hidden_units))
+            self.layers.append(GraphConv(hidden_units, 1))
         elif gcn_type == 'sage':
-            self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn', ))
+            self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
                 self.layers.append(SAGEConv(hidden_units, hidden_units, aggregator_type='gcn'))
+            self.layers.append(SAGEConv(hidden_units, 1, aggregator_type='gcn'))
         else:
             raise ValueError('Gcn type error.')
 
@@ -164,8 +166,6 @@ class DGCNN(nn.Module):
         self.use_edge_weight = False if edge_weights is None else True
 
         self.z_embedding = nn.Embedding(max_z, hidden_units)
-
-        self.z_embedding = nn.Embedding(max_z, hidden_units)
         if node_attributes is not None:
             self.node_attributes_lookup = nn.Embedding.from_pretrained(node_attributes)
             self.node_attributes_lookup.weight.requires_grad = False
@@ -190,10 +190,12 @@ class DGCNN(nn.Module):
             self.layers.append(GraphConv(initial_dim, hidden_units))
             for _ in range(num_layers - 1):
                 self.layers.append(GraphConv(hidden_units, hidden_units))
+            self.layers.append(GraphConv(hidden_units, 1))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
                 self.layers.append(SAGEConv(hidden_units, hidden_units, aggregator_type='gcn'))
+            self.layers.append(SAGEConv(hidden_units, 1, aggregator_type='gcn'))
         else:
             raise ValueError('Gcn type error.')
 

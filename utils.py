@@ -15,10 +15,11 @@ def parse_arguments():
     parser.add_argument('--dataset', type=str, default='ogbl-collab')
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--hop', type=int, default=1)
-    parser.add_argument('--model', type=str, default='gcn')
+    parser.add_argument('--model', type=str, default='dgcnn')
     parser.add_argument('--gcn_type', type=str, default='gcn')
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--hidden_units', type=int, default=32)
+    parser.add_argument('--sort_k', type=int, default=30)
     parser.add_argument('--pooling', type=str, default='center')
     parser.add_argument('--dropout', type=str, default=0.5)
     parser.add_argument('--hits_k', type=int, default=50)
@@ -27,12 +28,13 @@ def parse_arguments():
     # parser.add_argument('--train_subsample_ratio', type=float, default=1.0)
     # parser.add_argument('--val_subsample_ratio', type=float, default=1.0)
     # parser.add_argument('--test_subsample_ratio', type=float, default=1.0)
-    parser.add_argument('--subsample_ratio', type=float, default=1.0)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--subsample_ratio', type=float, default=0.1)
+    parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--eval_steps', type=int, default=5)
     parser.add_argument('--num_workers', type=int, default=32)
     parser.add_argument('--random_seed', type=int, default=2021)
+    parser.add_argument('--save_dir', type=str, default='./processed')
     args = parser.parse_args()
 
     return args
@@ -123,4 +125,4 @@ def evaluate_hits(name, pos_pred, neg_pred, K):
         'y_pred_neg': neg_pred,
     })[f'hits@{K}']
 
-    return hits*100
+    return hits * 100
