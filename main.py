@@ -15,12 +15,12 @@ def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
     model.train()
 
     total_loss = 0
-    for g, pair_nodes, labels in tqdm(dataloader, ncols=100):
+    for g, labels in tqdm(dataloader, ncols=100):
         g = g.to(device)
-        pair_nodes = pair_nodes.to(device)
+
         labels = labels.to(device)
 
-        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
+        logits = model(g, g.ndata['z'], g.ndata[NID], g.edata[EID])
         loss = loss_fn(logits, labels)
         loss.backward()
         optimizer.step()
@@ -53,11 +53,9 @@ def evaluate(model, dataloader, device):
     model.eval()
 
     y_pred, y_true = [], []
-    for g, pair_nodes, labels in tqdm(dataloader, ncols=100):
+    for g, labels in tqdm(dataloader, ncols=100):
         g = g.to(device)
-        pair_nodes = pair_nodes.to(device)
-
-        logits = model(g, g.ndata['z'], pair_nodes, g.ndata[NID], g.edata[EID])
+        logits = model(g, g.ndata['z'], g.ndata[NID], g.edata[EID])
         y_pred.append(logits.view(-1).cpu())
         y_true.append(labels.view(-1).cpu().to(torch.float))
 
@@ -141,7 +139,6 @@ def main(args, print_fn=print):
     parameters = model.parameters()
     optimizer = torch.optim.Adam(parameters, lr=args.lr)
     loss_fn = BCEWithLogitsLoss()
-    # use variable parameters may cause bug
     print_fn("Total parameters: {}".format(sum([p.numel() for p in model.parameters()])))
 
     # train and evaluate loop
@@ -185,3 +182,4 @@ if __name__ == '__main__':
     args = parse_arguments()
     logger = LightLogging(log_name='SEAL', log_path='./logs')
     main(args, logger.info)
+

@@ -17,16 +17,15 @@ class GraphDataSet(Dataset):
     GraphDataset for torch DataLoader
     """
 
-    def __init__(self, graph_list, tensor1, tensor2):
+    def __init__(self, graph_list, tensor):
         self.graph_list = graph_list
-        self.tensor1 = tensor1
-        self.tensor2 = tensor2
+        self.tensor = tensor
 
     def __len__(self):
         return len(self.graph_list)
 
     def __getitem__(self, index):
-        return (self.graph_list[index], self.tensor1[index], self.tensor2[index])
+        return (self.graph_list[index], self.tensor[index])
 
 
 class SEALDataLoader(object):
@@ -47,9 +46,8 @@ class SEALDataLoader(object):
 
         if isinstance(data, dict):
             graph_list = data['graph_list']
-            pair_nodes = data['pair_nodes']
             labels = data['labels']
-            dataset = GraphDataSet(graph_list, pair_nodes, labels)
+            dataset = GraphDataSet(graph_list, labels)
         elif isinstance(data, list):
             raise NotImplementedError
         else:
@@ -67,9 +65,8 @@ class SEALDataLoader(object):
         batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
-        batch_pair_nodes = torch.stack(batch_pair_nodes)
         batch_labels = torch.stack(batch_labels)
-        return batch_graphs, batch_pair_nodes, batch_labels
+        return batch_graphs, batch_labels
 
     def __len__(self):
         """Return the number of batches of the data loader."""
@@ -144,8 +141,8 @@ class EdgeDataSet(Dataset):
         return len(self.edges)
 
     def __getitem__(self, index):
-        graphs, pair_nodes = self.transform(self.edges[index])
-        return (graphs, torch.LongTensor(pair_nodes), self.labels[index])
+        graph_list = self.transform(self.edges[index])
+        return (graph_list, self.labels[index])
 
 
 class SEALSampler(object):
@@ -197,35 +194,31 @@ class SEALSampler(object):
         z = drnl_node_labeling(subgraph, u_id, v_id)
         subgraph.ndata['z'] = z
 
-        return subgraph, (u_id, v_id)
+        return subgraph
 
     def _collate(self, batch):
 
         batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
-        batch_pair_nodes = torch.stack(batch_pair_nodes)
         batch_labels = torch.stack(batch_labels)
-        return batch_graphs, batch_pair_nodes, batch_labels
+        return batch_graphs, batch_labels
 
     def sample(self, edges, labels):
         subgraph_list = []
-        pair_nodes_list = []
         labels_list = []
         edge_dataset = EdgeDataSet(edges, labels, transform=self.sample_subgraph)
 
         sampler = DataLoader(edge_dataset, batch_size=3 * self.num_workers, num_workers=self.num_workers,
                              shuffle=False, collate_fn=self._collate)
-        for subgraph, pair_nodes, labels in tqdm(sampler, ncols=70):
+        for subgraph, label in tqdm(sampler, ncols=70):
             subgraph = dgl.unbatch(subgraph)
-            pair_nodes_copy = deepcopy(pair_nodes)
-            labels_copy = deepcopy(labels)
-            del pair_nodes, labels
+            label_copy = deepcopy(label)
+            del label
             subgraph_list += subgraph
-            pair_nodes_list.append(pair_nodes_copy)
-            labels_list.append(labels_copy)
+            labels_list.append(label_copy)
 
-        return subgraph_list, torch.cat(pair_nodes_list), torch.cat(labels_list)
+        return subgraph_list, torch.cat(labels_list)
 
     def __call__(self, split_type, path, edges=None, labels=None):
 
@@ -253,13 +246,13 @@ class SEALSampler(object):
             if osp.exists(path[i]):
                 self.print_fn('Part {} exists.'.format(i))
             else:
-                subgraph_list, pair_nodes, batch_labels = self.sample(edges[batch_start:batch_end],
+                subgraph_list, batch_labels = self.sample(edges[batch_start:batch_end],
                                                                       labels[batch_start:batch_end])
 
-                dgl.save_graphs(path[i], subgraph_list, {'labels': batch_labels, 'pair_nodes': pair_nodes})
+                dgl.save_graphs(path[i], subgraph_list, {'labels': batch_labels})
                 if num_parts == 1:
                     data['graph_list'] = subgraph_list
-                    data['pair_nodes'] = pair_nodes
+
                     data['labels'] = batch_labels
         self.print_fn("Save preprocessed subgraph to {}".format(path))
 

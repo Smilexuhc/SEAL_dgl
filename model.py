@@ -72,15 +72,15 @@ class GCN(nn.Module):
 
         self.linear_1 = nn.Linear(hidden_units, hidden_units)
         self.linear_2 = nn.Linear(hidden_units, 1)
-
-        if pooling_type == 'sum':
-            self.pooling = SumPooling()
+        if pooling_type != 'sum':
+            raise ValueError('Pooling type error.')
+        self.pooling = SumPooling()
 
     def reset_parameters(self):
         for layer in self.layers:
             layer.reset_parameters()
 
-    def forward(self, g, z, pair_nodes=None, node_id=None, edge_id=None):
+    def forward(self, g, z, node_id=None, edge_id=None):
         """
 
         Args:
@@ -121,13 +121,7 @@ class GCN(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.layers[-1](g, x, edge_weight)
 
-        if self.pooling_type == 'center':
-            x_u = x[pair_nodes[:, 0]]
-            x_v = x[pair_nodes[:, 1]]
-            x = (x_u * x_v)
-
-        elif self.pooling_type == 'sum':
-            x = self.pooling(g, x)
+        x = self.pooling(g, x)
 
         x = F.relu(self.linear_1(x))
         F.dropout(x, p=self.dropout, training=self.training)
@@ -208,12 +202,12 @@ class DGCNN(nn.Module):
         self.maxpool1d = nn.MaxPool1d(2, 2)
         self.conv_2 = nn.Conv1d(conv1d_channels[0], conv1d_channels[1],
                                 conv1d_kws[1], 1)
-        dense_dim = int((k - 2) / 2)
+        dense_dim = int((k - 2) / 2 + 1)
         dense_dim = (dense_dim - conv1d_kws[1] + 1) * conv1d_channels[1]
         self.linear_1 = nn.Linear(dense_dim, 128)
         self.linear_2 = nn.Linear(128, 1)
 
-    def forward(self, g, z, pair_nodes=None, node_id=None, edge_id=None):
+    def forward(self, g, z, node_id=None, edge_id=None):
         """
 
         Args:

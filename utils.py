@@ -55,19 +55,6 @@ def load_ogb_dataset(dataset):
     return graph, split_edge
 
 
-def load_mat(data_name, path='./data/'):
-    all_idx = np.loadtxt(osp.join(path, data_name))
-    max_idx = np.max(all_idx)
-
-    mat = ssp.csc_matrix(
-        (np.ones(len(all_idx)), (all_idx[:, 0], all_idx[:, 1])),
-        shape=(max_idx + 1, max_idx + 1)
-    )
-    mat[all_idx[:, 1], all_idx[:, 0]] = 1
-
-    return mat
-
-
 def add_val_edges_as_train_collab(graph, split_edge):
     """
     According to OGB, this dataset allows including validation links in training when all the hyperparameters are
@@ -118,6 +105,18 @@ def drnl_node_labeling(subgraph, u_id, v_id):
 
 
 def evaluate_hits(name, pos_pred, neg_pred, K):
+    """
+    Compute hits
+    Args:
+        name(str): name of dataset
+        pos_pred(Tensor): predict value of positive edges
+        neg_pred(Tensor): predict value of negative edges
+        K(int):
+
+    Returns:
+
+
+    """
     evaluator = Evaluator(name)
     evaluator.K = K
     hits = evaluator.eval({
@@ -125,4 +124,4 @@ def evaluate_hits(name, pos_pred, neg_pred, K):
         'y_pred_neg': neg_pred,
     })[f'hits@{K}']
 
-    return hits * 100
+    return hits
