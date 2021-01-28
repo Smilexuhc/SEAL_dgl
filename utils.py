@@ -20,7 +20,7 @@ def parse_arguments():
     parser.add_argument('--num_layers', type=int, default=3)
     parser.add_argument('--hidden_units', type=int, default=32)
     parser.add_argument('--sort_k', type=int, default=30)
-    parser.add_argument('--pooling', type=str, default='center')
+    parser.add_argument('--pooling', type=str, default='sum')
     parser.add_argument('--dropout', type=str, default=0.5)
     parser.add_argument('--hits_k', type=int, default=50)
     parser.add_argument('--lr', type=float, default=0.0001)
@@ -102,6 +102,37 @@ def drnl_node_labeling(subgraph, u_id, v_id):
     z[torch.isnan(z)] = 0
 
     return z.long()
+
+
+def drnl_node_labeling(subgraph, src, dst):
+    # Double-radius node labeling (DRNL).
+    adj = subgraph.adj().to_dense().numpy()
+    src, dst = (dst, src) if src > dst else (src, dst)
+
+    idx = list(range(src)) + list(range(src + 1, adj.shape[0]))
+    adj_wo_src = adj[idx, :][:, idx]
+
+    idx = list(range(dst)) + list(range(dst + 1, adj.shape[0]))
+    adj_wo_dst = adj[idx, :][:, idx]
+
+    dist2src = shortest_path(adj_wo_dst, directed=False, unweighted=True, indices=src)
+    dist2src = np.insert(dist2src, dst, 0, axis=0)
+    dist2src = torch.from_numpy(dist2src)
+
+    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst-1)
+    dist2dst = np.insert(dist2dst, src, 0, axis=0)
+    dist2dst = torch.from_numpy(dist2dst)
+
+    dist = dist2src + dist2dst
+    dist_over_2, dist_mod_2 = dist // 2, dist % 2
+
+    z = 1 + torch.min(dist2src, dist2dst)
+    z += dist_over_2 * (dist_over_2 + dist_mod_2 - 1)
+    z[src] = 1.
+    z[dst] = 1.
+    z[torch.isnan(z)] = 0.
+
+    return z.to(torch.long)
 
 
 def evaluate_hits(name, pos_pred, neg_pred, K):

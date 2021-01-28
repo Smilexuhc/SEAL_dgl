@@ -56,12 +56,11 @@ class GCN(nn.Module):
             initial_dim += self.node_embedding.embedding_dim
 
         self.layers = nn.ModuleList()
-
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units))
+            self.layers.append(GraphConv(initial_dim, hidden_units,allow_zero_in_degree=True))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units))
-            self.layers.append(GraphConv(hidden_units, 1))
+                self.layers.append(GraphConv(hidden_units, hidden_units,allow_zero_in_degree=True))
+            self.layers.append(GraphConv(hidden_units, 1,allow_zero_in_degree=True))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
@@ -160,6 +159,7 @@ class DGCNN(nn.Module):
         self.use_edge_weight = False if edge_weights is None else True
 
         self.z_embedding = nn.Embedding(max_z, hidden_units)
+
         if node_attributes is not None:
             self.node_attributes_lookup = nn.Embedding.from_pretrained(node_attributes)
             self.node_attributes_lookup.weight.requires_grad = False
@@ -179,12 +179,11 @@ class DGCNN(nn.Module):
             initial_dim += self.node_embedding.embedding_dim
 
         self.layers = nn.ModuleList()
-
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units))
+            self.layers.append(GraphConv(initial_dim, hidden_units,allow_zero_in_degree=True))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units))
-            self.layers.append(GraphConv(hidden_units, 1))
+                self.layers.append(GraphConv(hidden_units, hidden_units,allow_zero_in_degree=True))
+            self.layers.append(GraphConv(hidden_units, 1,allow_zero_in_degree=True))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
@@ -214,7 +213,7 @@ class DGCNN(nn.Module):
 
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
-            pair_nodes(Tensor): id of two target nodes used in center pooling
+
             node_id(Tensor, optional): node id tensor, shape [N, 1]
             edge_id(Tensor, optional): edge id tensor, shape [E, 1]
         Returns:
@@ -222,13 +221,11 @@ class DGCNN(nn.Module):
 
         """
         z_emb = self.z_embedding(z)
-
         if self.use_attribute:
             x = self.node_attributes_lookup(node_id)
             x = torch.cat([z_emb, x], 1)
         else:
             x = z_emb
-
         if self.use_edge_weight:
             edge_weight = self.edge_weights_lookup(edge_id)
         else:
@@ -239,9 +236,9 @@ class DGCNN(nn.Module):
             x = torch.cat([x, n_emb], 1)
 
         xs = [x]
-
         for layer in self.layers:
-            xs += [torch.tanh(layer(g, xs[-1], edge_weight))]
+            out = torch.tanh(layer(g, xs[-1], edge_weight))
+            xs += [out]
 
         x = torch.cat(xs[1:], dim=-1)
 

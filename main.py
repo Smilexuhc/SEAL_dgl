@@ -26,7 +26,7 @@ def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
         optimizer.step()
         total_loss += loss.item() * num_graphs
 
-    return total_loss / len(dataloader)
+    return total_loss / dataloader.total_graphs
 
 
 def test_data_loader(dataloader, device, epochs=15, print_fn=print):

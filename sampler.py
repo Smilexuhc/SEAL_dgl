@@ -1,7 +1,7 @@
 import torch
 import dgl
 from torch.utils.data import DataLoader, Dataset
-from dgl import DGLGraph, NID
+from dgl import DGLGraph, NID, EID
 from utils import drnl_node_labeling
 from dgl.dataloading.negative_sampler import Uniform
 from dgl import add_self_loop
@@ -52,17 +52,14 @@ class SEALDataLoader(object):
             raise NotImplementedError
         else:
             raise ValueError("data type error")
-
+        self.total_graphs = len(data['graph_list'])
         self.dataloader = DataLoader(dataset=dataset, collate_fn=self._collate, batch_size=batch_size, shuffle=shuffle,
                                      num_workers=num_workers,
                                      drop_last=drop_last, pin_memory=pin_memory)
 
     def _collate(self, batch):
-        # batch_graphs = [item[0] for item in batch]
-        # batch_pair_nodes = [item[1] for item in batch]
-        # batch_labels = [item[2] for item in batch]
 
-        batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
+        batch_graphs, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
         batch_labels = torch.stack(batch_labels)
@@ -120,9 +117,9 @@ class PosNegEdgesGenerator(object):
 
     def subsample(self, edges, subsample_ratio):
 
-        num_pos = edges.size(0)
-        perm = torch.randperm(num_pos)
-        perm = perm[:int(subsample_ratio * num_pos)]
+        num_edges = edges.size(0)
+        perm = torch.randperm(num_edges)
+        perm = perm[:int(subsample_ratio * num_edges)]
         edges = edges[perm]
         return edges
 
@@ -141,8 +138,8 @@ class EdgeDataSet(Dataset):
         return len(self.edges)
 
     def __getitem__(self, index):
-        graph_list = self.transform(self.edges[index])
-        return (graph_list, self.labels[index])
+        subgraph = self.transform(self.edges[index])
+        return (subgraph, self.labels[index])
 
 
 class SEALSampler(object):
@@ -156,15 +153,11 @@ class SEALSampler(object):
         save_dir:
     """
 
-    def __init__(self, graph, hop=1, prefix=None, num_workers=32, save_dir=None,
-                 num_parts=1, print_fn=print()):
+    def __init__(self, graph, hop=1, num_workers=32, print_fn=print):
         self.graph = graph
         self.hop = hop
-        # self.use_node_label = use_node_label
-        # self.save_dir = save_dir
         self.print_fn = print_fn
         self.num_workers = num_workers
-        self.num_parts = num_parts
 
     def sample_subgraph(self, target_nodes):
         """
@@ -179,39 +172,54 @@ class SEALSampler(object):
         frontiers = target_nodes
 
         for i in range(self.hop):
-            frontiers = self.graph.in_edges(frontiers)[0]
+            frontiers = self.graph.out_edges(frontiers)[1]
             frontiers = torch.unique(frontiers)
             sample_nodes.append(frontiers)
 
         sample_nodes = torch.cat(sample_nodes)
         sample_nodes = torch.unique(sample_nodes)
         subgraph = dgl.node_subgraph(self.graph, sample_nodes)
+
         # Each node should have unique node id in the new subgraph
-        # set as_tuple to prevent warning(torch 1.6.0)
         u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
         v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
-
         z = drnl_node_labeling(subgraph, u_id, v_id)
+
         subgraph.ndata['z'] = z
+
+        # remove link between target nodes in positive subgraphs.
+        # Opration of edge removing will rearange NID and EID, which lose the original NID and EID
+        nids = subgraph.ndata[NID]
+        eids = subgraph.edata[EID]
+        if subgraph.has_edges_between(u_id, v_id):
+            link_id = subgraph.edge_ids(u_id, v_id, return_uv=True)[2]
+            subgraph.remove_edges(link_id)
+            eids = eids[subgraph.edata[EID]]
+        if subgraph.has_edges_between(v_id, u_id):
+            link_id = subgraph.edge_ids(v_id, u_id, return_uv=True)[2]
+            subgraph.remove_edges(link_id)
+            eids = eids[subgraph.edata[EID]]
+        subgraph.ndata[NID] = nids
+        subgraph.edata[EID] = eids
 
         return subgraph
 
     def _collate(self, batch):
 
-        batch_graphs, batch_pair_nodes, batch_labels = map(list, zip(*batch))
+        batch_graphs, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
         batch_labels = torch.stack(batch_labels)
         return batch_graphs, batch_labels
 
-    def sample(self, edges, labels):
+    def __call__(self, edges, labels):
         subgraph_list = []
         labels_list = []
         edge_dataset = EdgeDataSet(edges, labels, transform=self.sample_subgraph)
-
+        self.print_fn('Using {} workers in sampling job.'.format(self.num_workers))
         sampler = DataLoader(edge_dataset, batch_size=3 * self.num_workers, num_workers=self.num_workers,
                              shuffle=False, collate_fn=self._collate)
-        for subgraph, label in tqdm(sampler, ncols=70):
+        for subgraph, label in tqdm(sampler, ncols=100):
             subgraph = dgl.unbatch(subgraph)
             label_copy = deepcopy(label)
             del label
@@ -219,160 +227,6 @@ class SEALSampler(object):
             labels_list.append(label_copy)
 
         return subgraph_list, torch.cat(labels_list)
-
-    def __call__(self, split_type, path, edges=None, labels=None):
-
-        if split_type == 'train':
-            num_parts = self.num_parts
-        else:
-            num_parts = 1
-
-        # if num_parts != 1:
-        #     path = ['{}_{}_{}-hop-part{}.bin'.format(self.prefix, split_type, self.hop, i) for i in
-        #             range(num_parts)]
-        #     path = [osp.join(self.save_dir or '', p) for p in path]
-        # else:
-        #     path = [osp.join(self.save_dir or '', '{}_{}_{}-hop.bin'.format(self.prefix, split_type, self.hop))]
-
-        self.print_fn("Start sampling subgraph.")
-        self.print_fn('Using {} workers in sampling job.'.format(self.num_workers))
-
-        if num_parts == 1:
-            data = dict()
-        batch_size = len(edges) // num_parts + 1
-        for i in range(num_parts):
-            batch_start = i * batch_size
-            batch_end = batch_start + batch_size
-            if osp.exists(path[i]):
-                self.print_fn('Part {} exists.'.format(i))
-            else:
-                subgraph_list, batch_labels = self.sample(edges[batch_start:batch_end],
-                                                                      labels[batch_start:batch_end])
-
-                dgl.save_graphs(path[i], subgraph_list, {'labels': batch_labels})
-                if num_parts == 1:
-                    data['graph_list'] = subgraph_list
-
-                    data['labels'] = batch_labels
-        self.print_fn("Save preprocessed subgraph to {}".format(path))
-
-        if num_parts == 1:
-            return data
-        else:
-            return path
-
-
-class ParallelSEALSampler(object):
-    """
-    Sampler for SEAL in paper(no-block version)
-    The  strategy is to sample all the k-hop neighbors around the two target nodes.
-    Exist bugs
-    Attributes:
-        graph(DGLGraph): The graph
-        hop(int): num of hop
-        prefix(str):
-        num_workers(int):
-        save_dir(str):
-    """
-
-    def __init__(self, graph, hop, prefix=None, num_workers=1, save_dir=None, print_fn=print):
-        self.graph = graph
-        self.hop = hop
-        # self.use_node_label = use_node_label
-        self.prefix = prefix or ''
-        self.save_dir = save_dir
-        self.print_fn = print_fn
-        self.num_workers = num_workers
-
-    def sample_subgraph(self, target_nodes):
-        """
-
-        Args:
-            target_nodes(Tensor): Tensor of two target nodes
-        Returns:
-            subgraph(DGLGraph): subgraph
-
-        """
-        sample_nodes = [target_nodes]
-        frontiers = target_nodes
-
-        for i in range(self.hop):
-            frontiers = self.graph.in_edges(frontiers)[0]
-            frontiers = torch.unique(frontiers)
-            sample_nodes.append(frontiers)
-
-        sample_nodes = torch.cat(sample_nodes)
-        sample_nodes = torch.unique(sample_nodes)
-        subgraph = dgl.node_subgraph(self.graph, sample_nodes)
-        # Each node should have unique node id in the new subgraph
-        # set as_tuple to prevent warning(torch 1.6.0)
-        u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
-        v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
-
-        z = drnl_node_labeling(subgraph, u_id, v_id)
-        subgraph.ndata['z'] = z
-
-        return subgraph, (u_id, v_id)
-
-    def batch_sample(self, edges, labels):
-        batch_graphs = []
-        batch_pair_nodes = []
-
-        for edge in edges:
-            subgraph, pair_node = self.sample_subgraph(edge)
-            batch_graphs.append(subgraph)
-            batch_pair_nodes.append(pair_node)
-
-        return (batch_graphs, torch.LongTensor(batch_pair_nodes), labels)
-
-    def parallel_sample(self, edges, labels):
-        self.print_fn("Input edges: {}".format(len(edges)))
-        if self.hop >= 2:
-            self.print_fn("Sampling hop {} >2, will take server hours.".format(self.hop))
-
-        pool = Pool(self.num_workers)
-
-        batch_size = 128
-        num_batch = len(edges) // batch_size + 1
-        workers = []
-        for i in range(num_batch):
-            batch_start = i * batch_size
-            workers.append(
-                pool.apply_async(func=self.batch_sample,
-                                 kwds={'edges': edges[batch_start: batch_start + batch_size],
-                                       'labels': labels[batch_start: batch_start + batch_size]}))
-
-        graph_list = []
-        pair_nodes_list = []
-        labels_list = []
-        for worker in tqdm(workers):
-            batch_graph, batch_pair_nodes, batch_labels = worker.get()
-            graph_list.append(batch_graph)
-            pair_nodes_list.append(batch_pair_nodes)
-            labels_list.append(batch_labels)
-
-        pool.close()
-        pool.join()
-
-        return graph_list, torch.cat(pair_nodes_list), torch.cat(labels_list)
-
-    def __call__(self, edges, split_type, labels):
-        file_name = '{}_{}_{}-hop.bin'.format(self.prefix, split_type, self.hop)
-        path = osp.join(self.save_dir or '', file_name)
-
-        if self.save_dir is not None and osp.exists(path):
-            self.print_fn("Load preprocessed subgraph from {}".format(path))
-            subgraph_list, data = dgl.load_graphs(path)
-            pair_nodes = data['pair_nodes']
-            labels = data['y']
-        else:
-            self.print_fn("Start sampling subgraph.")
-            subgraph_list, pair_nodes, labels = self.parallel_sample(edges, labels)
-            if self.save_dir is not None:
-                self.print_fn("Save preprocessed subgraph to {}".format(path))
-                dgl.save_graphs(path, subgraph_list, {'y': labels, 'pair_nodes': pair_nodes})
-
-        return subgraph_list, pair_nodes, labels
 
 
 class SEALData(object):
@@ -391,10 +245,6 @@ class SEALData(object):
         self.prefix = prefix
         self.save_dir = save_dir
         self.print_fn = print_fn
-        if self.hop > 1:
-            self.num_parts = 10
-        else:
-            self.num_parts = 1
 
         self.ndata = {k: v for k, v in self.g.ndata.items()}
         self.edata = {k: v for k, v in self.g.edata.items()}
@@ -413,44 +263,39 @@ class SEALData(object):
         self.sampler = SEALSampler(graph=self.g,
                                    hop=hop,
                                    num_workers=num_workers,
-                                   num_parts=self.num_parts,
                                    print_fn=print_fn)
 
     def __call__(self, split_type):
 
         if split_type == 'train':
-            num_parts = self.num_parts
             subsample_ratio = self.subsample_ratio
         else:
-            num_parts = 1
             subsample_ratio = 1
 
-        if num_parts != 1:
-            path = ['{}_{}_{}-hop_{}-subsample-part{}.bin'.format(self.prefix, split_type, self.hop,
-                                                                  subsample_ratio, i) for i in
-                    range(self.num_parts)]
-            path = [osp.join(self.save_dir or '', p) for p in path]
-        else:
-            path = [osp.join(self.save_dir or '', '{}_{}_{}-hop_{}-subsample.bin'.format(self.prefix, split_type,
-                                                                                         self.hop,
-                                                                                         subsample_ratio))]
+        path = osp.join(self.save_dir or '', '{}_{}_{}-hop_{}-subsample.bin'.format(self.prefix, split_type,
+                                                                                    self.hop, subsample_ratio))
 
-        if all([osp.exists(p) for p in path]):
+        if osp.exists(path):
             self.print_fn("Load existing processed {} files".format(split_type))
-            if num_parts == 1:
-                tmp = dgl.load_graphs(path[0])
-                data = {'graph_list': tmp[0]}
-                for k, v in tmp[1].items():
-                    data[k] = v
-                return data
-            else:
-                return path
-        else:
 
+            tmp = dgl.load_graphs(path)
+            data = {'graph_list': tmp[0]}
+            for k, v in tmp[1].items():
+                data[k] = v
+            return data
+        else:
             self.print_fn("Processed {} files not exist.".format(split_type))
 
             edges, labels = self.generator(split_type)
             self.print_fn("Generate {} edges totally.".format(edges.size(0)))
-            if num_parts > 1:
-                print("{}-hop subgraph too large, partition to {} files".format(self.hop, num_parts))
-            return self.sampler(split_type, path, edges, labels)
+
+            graph_list,labels = self.sampler(edges,labels)
+            data = {'graph_list': graph_list, 'labels': labels}
+            dgl.save_graphs(path, graph_list, {'labels': labels})
+            self.print_fn("Save preprocessed subgraph to {}".format(path))
+            return data
+
+
+
+
+
