@@ -2,7 +2,7 @@ import torch
 import dgl
 from torch.utils.data import DataLoader, Dataset
 from dgl import DGLGraph, NID, EID
-from utils import drnl_node_labeling
+from utils import drnl_node_labeling, coalesce_graph
 from dgl.dataloading.negative_sampler import Uniform
 from dgl import add_self_loop
 import numpy as np
@@ -78,7 +78,7 @@ class PosNegEdgesGenerator(object):
 
     """
 
-    def __init__(self, g, split_edge, neg_samples=1, subsample_ratio=1, shuffle=True, return_type='combine'):
+    def __init__(self, g, split_edge, neg_samples=1, subsample_ratio=0.1, shuffle=True, return_type='combine'):
         self.neg_sampler = Uniform(neg_samples)
         self.subsample_ratio = subsample_ratio
         # self.random_seed = random_seed
@@ -150,7 +150,7 @@ class SEALSampler(object):
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
-        save_dir:
+
     """
 
     def __init__(self, graph, hop=1, num_workers=32, print_fn=print):
@@ -183,10 +183,6 @@ class SEALSampler(object):
         # Each node should have unique node id in the new subgraph
         u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
         v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
-        z = drnl_node_labeling(subgraph, u_id, v_id)
-
-        subgraph.ndata['z'] = z
-
         # remove link between target nodes in positive subgraphs.
         # Opration of edge removing will rearange NID and EID, which lose the original NID and EID
         nids = subgraph.ndata[NID]
@@ -201,6 +197,9 @@ class SEALSampler(object):
             eids = eids[subgraph.edata[EID]]
         subgraph.ndata[NID] = nids
         subgraph.edata[EID] = eids
+
+        z = drnl_node_labeling(subgraph, u_id, v_id)
+        subgraph.ndata['z'] = z
 
         return subgraph
 
@@ -217,13 +216,13 @@ class SEALSampler(object):
         labels_list = []
         edge_dataset = EdgeDataSet(edges, labels, transform=self.sample_subgraph)
         self.print_fn('Using {} workers in sampling job.'.format(self.num_workers))
-        sampler = DataLoader(edge_dataset, batch_size=3 * self.num_workers, num_workers=self.num_workers,
+        sampler = DataLoader(edge_dataset, batch_size=32, num_workers=self.num_workers,
                              shuffle=False, collate_fn=self._collate)
         for subgraph, label in tqdm(sampler, ncols=100):
-            subgraph = dgl.unbatch(subgraph)
             label_copy = deepcopy(label)
-            del label
-            subgraph_list += subgraph
+            subgraph_copy = deepcopy(subgraph)
+            del label, subgraph
+            subgraph_list .append(subgraph_copy)
             labels_list.append(label_copy)
 
         return subgraph_list, torch.cat(labels_list)
@@ -238,7 +237,7 @@ class SEALData(object):
     """
 
     def __init__(self, g, split_edge, hop=1, neg_samples=1, subsample_ratio=1, prefix=None, save_dir=None,
-                 num_workers=32, shuffle=True, print_fn=print):
+                 num_workers=32, shuffle=True, use_coalesce=True, print_fn=print):
         self.g = g
         self.hop = hop
         self.subsample_ratio = subsample_ratio
@@ -246,19 +245,21 @@ class SEALData(object):
         self.save_dir = save_dir
         self.print_fn = print_fn
 
-        self.ndata = {k: v for k, v in self.g.ndata.items()}
-        self.edata = {k: v for k, v in self.g.edata.items()}
-        self.g.ndata.clear()
-        self.g.edata.clear()
-        self.print_fn("Save ndata and edata in class.")
-        self.print_fn("Clear ndata and edata in graph.")
-
         self.generator = PosNegEdgesGenerator(g=self.g,
                                               split_edge=split_edge,
                                               neg_samples=neg_samples,
                                               subsample_ratio=subsample_ratio,
                                               shuffle=shuffle,
                                               return_type='combine')
+        if use_coalesce:
+            self.g = coalesce_graph(self.g, copy_data=True)
+
+        self.ndata = {k: v for k, v in self.g.ndata.items()}
+        self.edata = {k: v for k, v in self.g.edata.items()}
+        self.g.ndata.clear()
+        self.g.edata.clear()
+        self.print_fn("Save ndata and edata in class.")
+        self.print_fn("Clear ndata and edata in graph.")
 
         self.sampler = SEALSampler(graph=self.g,
                                    hop=hop,
@@ -289,13 +290,8 @@ class SEALData(object):
             edges, labels = self.generator(split_type)
             self.print_fn("Generate {} edges totally.".format(edges.size(0)))
 
-            graph_list,labels = self.sampler(edges,labels)
+            graph_list, labels = self.sampler(edges, labels)
             data = {'graph_list': graph_list, 'labels': labels}
             dgl.save_graphs(path, graph_list, {'labels': labels})
             self.print_fn("Save preprocessed subgraph to {}".format(path))
             return data
-
-
-
-
-

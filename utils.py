@@ -1,10 +1,10 @@
-import scipy.sparse as ssp
-import os.path as osp
 from scipy.sparse.csgraph import shortest_path
 import numpy as np
 import torch
 import argparse
 from ogb.linkproppred import DglLinkPropPredDataset, Evaluator
+import dgl
+import pandas as pd
 
 
 def parse_arguments():
@@ -25,9 +25,6 @@ def parse_arguments():
     parser.add_argument('--hits_k', type=int, default=50)
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--neg_samples', type=int, default=1)
-    # parser.add_argument('--train_subsample_ratio', type=float, default=1.0)
-    # parser.add_argument('--val_subsample_ratio', type=float, default=1.0)
-    # parser.add_argument('--test_subsample_ratio', type=float, default=1.0)
     parser.add_argument('--subsample_ratio', type=float, default=0.1)
     parser.add_argument('--epochs', type=int, default=60)
     parser.add_argument('--batch_size', type=int, default=32)
@@ -52,7 +49,34 @@ def load_ogb_dataset(dataset):
     dataset = DglLinkPropPredDataset(name=dataset)
     split_edge = dataset.get_edge_split()
     graph = dataset[0]
+
     return graph, split_edge
+
+
+def coalesce_graph(graph, aggr_type='sum', copy_data=False):
+    src, dst = graph.edges()
+    graph_df = pd.DataFrame({'src': src, 'dst': dst})
+    graph_df['edge_weight'] = graph.edata['edge_weight'].numpy()
+
+    if aggr_type == 'sum':
+        tmp = graph_df.groupby(['src', 'dst'])['edge_weight'].sum().reset_index()
+    elif aggr_type == 'mean':
+        tmp = graph_df.groupby(['src', 'dst'])['edge_weight'].mean().reset_index()
+    else:
+        raise ValueError("aggr type error")
+
+    if copy_data:
+        graph = dgl.to_simple(graph, copy_ndata=True, copy_edata=True)
+    else:
+        graph = dgl.to_simple(graph)
+
+    src, dst = graph.edges()
+    graph_df = pd.DataFrame({'src': src, 'dst': dst})
+    graph_df = pd.merge(graph_df, tmp, how='left', on=['src', 'dst'])
+    graph.edata['edge_weight'] = torch.from_numpy(graph_df['edge_weight'].values).unsqueeze(1)
+
+    graph.edata.pop('count')
+    return graph
 
 
 def add_val_edges_as_train_collab(graph, split_edge):
@@ -119,7 +143,7 @@ def drnl_node_labeling(subgraph, src, dst):
     dist2src = np.insert(dist2src, dst, 0, axis=0)
     dist2src = torch.from_numpy(dist2src)
 
-    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst-1)
+    dist2dst = shortest_path(adj_wo_src, directed=False, unweighted=True, indices=dst - 1)
     dist2dst = np.insert(dist2dst, src, 0, axis=0)
     dist2dst = torch.from_numpy(dist2dst)
 

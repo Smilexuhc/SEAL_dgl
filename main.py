@@ -17,9 +17,8 @@ def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
     total_loss = 0
     for g, labels in tqdm(dataloader, ncols=100):
         g = g.to(device)
-
         labels = labels.to(device)
-
+        optimizer.zero_grad()
         logits = model(g, g.ndata['z'], g.ndata[NID], g.edata[EID])
         loss = loss_fn(logits, labels)
         loss.backward()
@@ -72,14 +71,13 @@ def main(args, print_fn=print):
     if args.random_seed:
         torch.manual_seed(args.random_seed)
     else:
-        torch.manual_seed(2021)
+        torch.manual_seed(123)
     # Load dataset
     if args.dataset.startswith('ogbl'):
         graph, split_edge = load_ogb_dataset(args.dataset)
     else:
         raise NotImplementedError
 
-    attribute_dim = graph.ndata['feat'].size(1)
     num_nodes = graph.num_nodes()
 
     # set gpu

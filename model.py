@@ -57,10 +57,10 @@ class GCN(nn.Module):
 
         self.layers = nn.ModuleList()
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units,allow_zero_in_degree=True))
+            self.layers.append(GraphConv(initial_dim, hidden_units, allow_zero_in_degree=True))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units,allow_zero_in_degree=True))
-            self.layers.append(GraphConv(hidden_units, 1,allow_zero_in_degree=True))
+                self.layers.append(GraphConv(hidden_units, hidden_units, allow_zero_in_degree=True))
+            self.layers.append(GraphConv(hidden_units, 1, allow_zero_in_degree=True))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
@@ -180,10 +180,10 @@ class DGCNN(nn.Module):
 
         self.layers = nn.ModuleList()
         if gcn_type == 'gcn':
-            self.layers.append(GraphConv(initial_dim, hidden_units,allow_zero_in_degree=True))
+            self.layers.append(GraphConv(initial_dim, hidden_units, allow_zero_in_degree=True))
             for _ in range(num_layers - 1):
-                self.layers.append(GraphConv(hidden_units, hidden_units,allow_zero_in_degree=True))
-            self.layers.append(GraphConv(hidden_units, 1,allow_zero_in_degree=True))
+                self.layers.append(GraphConv(hidden_units, hidden_units, allow_zero_in_degree=True))
+            self.layers.append(GraphConv(hidden_units, 1, allow_zero_in_degree=True))
         elif gcn_type == 'sage':
             self.layers.append(SAGEConv(initial_dim, hidden_units, aggregator_type='gcn'))
             for _ in range(num_layers - 1):
