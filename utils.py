@@ -44,6 +44,8 @@ def load_ogb_dataset(dataset):
         dataset(str): name of dataset (ogbl-collab, ogbl-ddi, ogbl-citation)
 
     Returns:
+        graph(DGLGraph): graph
+        split_edge(dict): split edge
 
     """
     dataset = DglLinkPropPredDataset(name=dataset)
@@ -54,6 +56,18 @@ def load_ogb_dataset(dataset):
 
 
 def coalesce_graph(graph, aggr_type='sum', copy_data=False):
+    """
+
+    Args:
+        graph(DGLGraph): graph
+        aggr_type(str): type of aggregator for multi edge weights
+        copy_data(bool): if copy ndata and edata in new graph
+
+    Returns:
+        graph(DGLGraph): graph
+
+
+    """
     src, dst = graph.edges()
     graph_df = pd.DataFrame({'src': src, 'dst': dst})
     graph_df['edge_weight'] = graph.edata['edge_weight'].numpy()
@@ -77,22 +91,6 @@ def coalesce_graph(graph, aggr_type='sum', copy_data=False):
 
     graph.edata.pop('count')
     return graph
-
-
-def add_val_edges_as_train_collab(graph, split_edge):
-    """
-    According to OGB, this dataset allows including validation links in training when all the hyperparameters are
-    finalized using the validation set. Thus, you should first tune your hyperparameters
-    without "--use_valedges_as_input", and then append "--use_valedges_as_input" to your final command
-    when all hyperparameters are determined. See https://github.com/snap-stanford/ogb/issues/84
-    Args:
-        graph:
-        split_edge:
-
-    Returns:
-
-    """
-    raise NotImplementedError
 
 
 def drnl_node_labeling(subgraph, u_id, v_id):
@@ -166,9 +164,10 @@ def evaluate_hits(name, pos_pred, neg_pred, K):
         name(str): name of dataset
         pos_pred(Tensor): predict value of positive edges
         neg_pred(Tensor): predict value of negative edges
-        K(int):
+        K(int): num of hits
 
     Returns:
+        hits(float): score of hits
 
 
     """

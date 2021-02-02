@@ -5,10 +5,8 @@ from dgl import DGLGraph, NID, EID
 from utils import drnl_node_labeling, coalesce_graph
 from dgl.dataloading.negative_sampler import Uniform
 from dgl import add_self_loop
-import numpy as np
 import os.path as osp
 from tqdm import tqdm
-from multiprocessing import Pool
 from copy import deepcopy
 
 
@@ -32,13 +30,8 @@ class SEALDataLoader(object):
     """
     Data Loader of SEAL
     Attributes:
-
+        data(dict): dict of tensor
         batch_size(int): size of batch
-
-        num_workers(int):
-        shuffle(bool):
-        drop_last(bool):
-        pin_memory(bool):
     """
 
     def __init__(self, data, batch_size, num_workers=1, shuffle=True,
@@ -75,13 +68,18 @@ class SEALDataLoader(object):
 
 class PosNegEdgesGenerator(object):
     """
-
+    Generate positive and negative samples
+    Attributes:
+        g(dgl.DGLGraph): graph
+        split_edge(dict): split edge
+        neg_samples(int): num of negative samples per positive sample
+        subsample_ratio(float): ratio of subsample
+        shuffle(bool): if shuffle generated graph list
     """
 
     def __init__(self, g, split_edge, neg_samples=1, subsample_ratio=0.1, shuffle=True, return_type='combine'):
         self.neg_sampler = Uniform(neg_samples)
         self.subsample_ratio = subsample_ratio
-        # self.random_seed = random_seed
         self.split_edge = split_edge
         self.g = g
         self.return_type = return_type
@@ -150,6 +148,7 @@ class SEALSampler(object):
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
+        num_workers(int): num of workers
 
     """
 
@@ -184,7 +183,7 @@ class SEALSampler(object):
         u_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[0]), as_tuple=False))
         v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
         # remove link between target nodes in positive subgraphs.
-        # Opration of edge removing will rearange NID and EID, which lose the original NID and EID
+        # Edge removing will rearange NID and EID, which lose the original NID and EID.
         nids = subgraph.ndata[NID]
         eids = subgraph.edata[EID]
         if subgraph.has_edges_between(u_id, v_id):
@@ -230,10 +229,16 @@ class SEALSampler(object):
 
 class SEALData(object):
     """
-    1. generate positive and negative samples
-    2. Subgraph sampling, support saving and loading processed graphs.
+    1. Generate positive and negative samples
+    2. Subgraph sampling
+
     Attributes:
-        g(dgl.DGLGraph):
+        g(dgl.DGLGraph): graph
+        split_edge(dict): split edge
+        hop(int): num of hop
+        neg_samples(int): num of negative samples per positive sample
+        subsample_ratio(float): ratio of subsample
+        use_coalesce(bool): if coalesce graph.
     """
 
     def __init__(self, g, split_edge, hop=1, neg_samples=1, subsample_ratio=1, prefix=None, save_dir=None,

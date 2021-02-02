@@ -1,5 +1,5 @@
 # Most codes from dgl.nn.pytorch
-# Adjust codes in forward for utilizing edge weight as input
+# Adjust codes in forward for utilizing edge weight in message passing.
 
 from torch import nn
 from torch.nn import init

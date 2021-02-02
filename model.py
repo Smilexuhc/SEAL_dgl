@@ -15,7 +15,8 @@ class GCN(nn.Module):
         gcn_type(str): type of gcn layer, 'gcn' for GraphConv and 'sage' for SAGEConv
         pooling_type(str): type of graph pooling to get subgraph representation
                            'sum' for sum pooling and 'center' for center pooling.
-        attribute_dim(int): dimension of nodes' attributes
+        node_attributes(Tensor, optional): node attribute
+        edge_weights(Tensor, optional): edge weight
         node_embedding(Tensor, optional): pre-trained node embedding
         use_embedding(bool, optional): whether to use node embedding. Note that if 'use_embedding' is set True
                              and 'node_embedding' is None, will automatically randomly initialize node embedding.
@@ -86,11 +87,10 @@ class GCN(nn.Module):
 
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
-            pair_nodes(Tensor): id of two target nodes used in center pooling
             node_id(Tensor, optional): node id tensor, shape [N, 1]
             edge_id(Tensor, optional): edge id tensor, shape [E, 1]
         Returns:
-            x(Tensor)
+            x(Tensor): output tensor
 
         """
 
@@ -133,14 +133,14 @@ class DGCNN(nn.Module):
     """
     An end-to-end deep learning architecture for graph classification.
     paper link: https://muhanzhang.github.io/papers/AAAI_2018_DGCNN.pdf
-    todo: rewrite the conv part
 
     Attributes:
         num_layers(int): num of gcn layers
         hidden_units(int): num of hidden units
         k(int, optional): The number of nodes to hold for each graph in SortPooling.
         gcn_type(str): type of gcn layer, 'gcn' for GraphConv and 'sage' for SAGEConv
-        attribute_dim(int): dimension of nodes' attributes
+        node_attributes(Tensor, optional): node attribute
+        edge_weights(Tensor, optional): edge weight
         node_embedding(Tensor, optional): pre-trained node embedding
         use_embedding(bool, optional): whether to use node embedding. Note that if 'use_embedding' is set True
                              and 'node_embedding' is None, will automatically randomly initialize node embedding.
@@ -213,12 +213,10 @@ class DGCNN(nn.Module):
 
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
-
             node_id(Tensor, optional): node id tensor, shape [N, 1]
             edge_id(Tensor, optional): edge id tensor, shape [E, 1]
         Returns:
-            x(Tensor)
-
+            x(Tensor): output tensor
         """
         z_emb = self.z_embedding(z)
         if self.use_attribute:

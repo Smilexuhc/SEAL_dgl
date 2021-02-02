@@ -28,25 +28,6 @@ def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
     return total_loss / dataloader.total_graphs
 
 
-def test_data_loader(dataloader, device, epochs=15, print_fn=print):
-    print_fn("Data loader size: {}".format(len(dataloader)))
-    start_time = time.time()
-    for epoch in range(epochs):
-        epoch_start = time.time()
-        for index, (g, pair_nodes, labels) in enumerate(dataloader):
-            g = g.to(device)
-            pair_nodes = pair_nodes.to(device)
-            labels = labels.to(device)
-
-            # if index % 100 == 0:
-            #     print_fn("Batch-{}, graph_size: {:.0f}, cost time: {}s".format(index, g.num_nodes() / g.batch_size,
-            #                                                                    time.time() - epoch_start))
-        print_fn("Epoch-{}: {:.1f}s".format(epoch, time.time() - epoch_start))
-
-    end_time = time.time()
-    print_fn("Total {} epochs, mean cost time: {:.1f}s".format(epochs, (start_time - end_time) / epochs))
-
-
 @torch.no_grad()
 def evaluate(model, dataloader, device):
     model.eval()
@@ -86,12 +67,17 @@ def main(args, print_fn=print):
     else:
         device = 'cpu'
 
+    if args.dataset == 'ogbl-collab':
+        # ogbl-collab dataset is multi-edge graph
+        use_coalesce = True
+    else:
+        use_coalesce = False
+
     # Generate positive and negative edges and corresponding labels
     # Sampling subgraphs and generate node labeling features
-
     seal_data = SEALData(g=graph, split_edge=split_edge, hop=args.hop, neg_samples=args.neg_samples,
-                         subsample_ratio=args.subsample_ratio, prefix=args.dataset, save_dir=args.save_dir,
-                         num_workers=args.num_workers, print_fn=print_fn)
+                         subsample_ratio=args.subsample_ratio, use_coalesce=use_coalesce, prefix=args.dataset,
+                         save_dir=args.save_dir, num_workers=args.num_workers, print_fn=print_fn)
     node_attribute = seal_data.ndata['feat']
     edge_weight = seal_data.edata['edge_weight'].float()
 
@@ -103,9 +89,6 @@ def main(args, print_fn=print):
     train_loader = SEALDataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers)
     val_loader = SEALDataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers)
     test_loader = SEALDataLoader(test_data, batch_size=args.batch_size, num_workers=args.num_workers)
-    # print_fn('Start testing speed of data loader')
-    # test_data_loader(train_loader, print_fn=print_fn)
-    # raise ValueError('END')
 
     # set model
     if args.model == 'gcn':
@@ -180,4 +163,3 @@ if __name__ == '__main__':
     args = parse_arguments()
     logger = LightLogging(log_name='SEAL', log_path='./logs')
     main(args, logger.info)
-
