@@ -93,7 +93,7 @@ def coalesce_graph(graph, aggr_type='sum', copy_data=False):
     return graph
 
 
-def drnl_node_labeling(subgraph, u_id, v_id):
+def drnl_node_labeling(subgraph, src, dst):
     """
     Double Radius Node labeling
     d = r(i,u)+r(i,v)
@@ -103,31 +103,11 @@ def drnl_node_labeling(subgraph, u_id, v_id):
 
     Args:
         subgraph(DGLGraph): The graph
-        u_id(int): node id of one of target nodes in new subgraph
-        v_id(int): node id of one of target nodes in new subgraph
+        src(int): node id of one of src node in new subgraph
+        dst(int): node id of one of dst node in new subgraph
     Returns:
         z(Tensor): node labeling tensor
     """
-
-    adj = subgraph.adj().to_dense().numpy()
-
-    dist_u, dist_v = shortest_path(adj, directed=False, unweighted=True, indices=(u_id, v_id))
-
-    dist_u = torch.from_numpy(dist_u)
-    dist_v = torch.from_numpy(dist_v)
-    dist_sum = dist_u + dist_v
-    dist_div_2, dist_mod_2 = dist_sum // 2, dist_sum % 2
-
-    z = 1 + torch.min(dist_u, dist_v) + dist_div_2 * (dist_div_2 + dist_mod_2 - 1)
-    z[u_id] = 1
-    z[v_id] = 1
-    z[torch.isnan(z)] = 0
-
-    return z.long()
-
-
-def drnl_node_labeling(subgraph, src, dst):
-    # Double-radius node labeling (DRNL).
     adj = subgraph.adj().to_dense().numpy()
     src, dst = (dst, src) if src > dst else (src, dst)
 

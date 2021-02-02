@@ -13,6 +13,32 @@ The graph dataset used in this example
 ---------------------------------------
 
 ogbl-collab
+ - NumNodes: 235868
+ - NumEdges: 2358104
+ - NumNodeFeats: 128
+ - NumEdgeWeights: 1
+ - NumValidEdges: 160084
+ - NumTestEdges: 146329
+ 
+ How to run example files
+--------------------------------
+In the seal_dgl folder, run
 
+```shell script
+python main.py --gpu_id=-1 --subsample_ratio=0.1
+```
 
+```shell script
+python main.py --gpu_id=0  --subsample_ratio=0.1
+```
 
+Performance
+-------------------------
+experiment on `ogbl-collab`
+
+| method | valid-hits@50 | test-hits@50 |
+| ------ | ------------- | ------------ |
+| paper  | 63.89(0.49)         | 53.71(0.47)        |
+| ours     | 63.56(0.71)         | 53.61(0.78)        |
+
+Note: We only perform 5 trails in the experiment.
