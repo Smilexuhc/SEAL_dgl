@@ -57,7 +57,7 @@ def load_ogb_dataset(dataset):
 
 def coalesce_graph(graph, aggr_type='sum', copy_data=False):
     """
-
+    Coalesce multi-edge graph
     Args:
         graph(DGLGraph): graph
         aggr_type(str): type of aggregator for multi edge weights

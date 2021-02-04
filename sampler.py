@@ -181,18 +181,26 @@ class SEALSampler(object):
         v_id = int(torch.nonzero(subgraph.ndata[NID] == int(target_nodes[1]), as_tuple=False))
         # remove link between target nodes in positive subgraphs.
         # Edge removing will rearange NID and EID, which lose the original NID and EID.
-        nids = subgraph.ndata[NID]
-        eids = subgraph.edata[EID]
-        if subgraph.has_edges_between(u_id, v_id):
-            link_id = subgraph.edge_ids(u_id, v_id, return_uv=True)[2]
-            subgraph.remove_edges(link_id)
-            eids = eids[subgraph.edata[EID]]
-        if subgraph.has_edges_between(v_id, u_id):
-            link_id = subgraph.edge_ids(v_id, u_id, return_uv=True)[2]
-            subgraph.remove_edges(link_id)
-            eids = eids[subgraph.edata[EID]]
-        subgraph.ndata[NID] = nids
-        subgraph.edata[EID] = eids
+        if dgl.__version__[:5] < '0.6.0':
+            nids = subgraph.ndata[NID]
+            eids = subgraph.edata[EID]
+            if subgraph.has_edges_between(u_id, v_id):
+                link_id = subgraph.edge_ids(u_id, v_id, return_uv=True)[2]
+                subgraph.remove_edges(link_id)
+                eids = eids[subgraph.edata[EID]]
+            if subgraph.has_edges_between(v_id, u_id):
+                link_id = subgraph.edge_ids(v_id, u_id, return_uv=True)[2]
+                subgraph.remove_edges(link_id)
+                eids = eids[subgraph.edata[EID]]
+            subgraph.ndata[NID] = nids
+            subgraph.edata[EID] = eids
+        else:
+            if subgraph.has_edges_between(u_id, v_id):
+                link_id = subgraph.edge_ids(u_id, v_id, return_uv=True)[2]
+                subgraph.remove_edges(link_id)
+            if subgraph.has_edges_between(v_id, u_id):
+                link_id = subgraph.edge_ids(v_id, u_id, return_uv=True)[2]
+                subgraph.remove_edges(link_id)
 
         z = drnl_node_labeling(subgraph, u_id, v_id)
         subgraph.ndata['z'] = z
