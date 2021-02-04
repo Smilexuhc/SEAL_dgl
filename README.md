@@ -20,14 +20,23 @@ ogbl-collab
  - NumValidEdges: 160084
  - NumTestEdges: 146329
  
+Dependencies
+--------------------------------
+
+- python 3.6+
+- Pytorch 1.5.0+
+- pandas
+- tqdm
+- scipy
+
  How to run example files
 --------------------------------
-In the seal_dgl folder, run
-
+In the seal_dgl folder    
+run on cpu:  
 ```shell script
 python main.py --gpu_id=-1 --subsample_ratio=0.1
 ```
-
+run on gpu:  
 ```shell script
 python main.py --gpu_id=0  --subsample_ratio=0.1
 ```
@@ -41,4 +50,4 @@ experiment on `ogbl-collab`
 | paper  | 63.89(0.49)         | 53.71(0.47)        |
 | ours     | 63.56(0.71)         | 53.61(0.78)        |
 
-Note: We only perform 5 trails in the experiment.
+Note: We only perform 5 trails in the experiment. 

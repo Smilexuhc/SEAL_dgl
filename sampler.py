@@ -41,8 +41,6 @@ class SEALDataLoader(object):
             graph_list = data['graph_list']
             labels = data['labels']
             dataset = GraphDataSet(graph_list, labels)
-        elif isinstance(data, list):
-            raise NotImplementedError
         else:
             raise ValueError("data type error")
         self.total_graphs = len(data['graph_list'])
@@ -144,7 +142,6 @@ class SEALSampler(object):
     """
     Sampler for SEAL in paper(no-block version)
     The  strategy is to sample all the k-hop neighbors around the two target nodes.
-    # todo: save subgraph
     Attributes:
         graph(DGLGraph): The graph
         hop(int): num of hop
@@ -219,9 +216,10 @@ class SEALSampler(object):
                              shuffle=False, collate_fn=self._collate)
         for subgraph, label in tqdm(sampler, ncols=100):
             label_copy = deepcopy(label)
-            subgraph_copy = deepcopy(subgraph)
-            del label, subgraph
-            subgraph_list .append(subgraph_copy)
+            subgraph = dgl.unbatch(subgraph)
+
+            del label
+            subgraph_list += subgraph
             labels_list.append(label_copy)
 
         return subgraph_list, torch.cat(labels_list)
