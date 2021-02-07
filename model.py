@@ -82,9 +82,7 @@ class GCN(nn.Module):
 
     def forward(self, g, z, node_id=None, edge_id=None):
         """
-
         Args:
-
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
             node_id(Tensor, optional): node id tensor, shape [N, 1]
@@ -208,9 +206,7 @@ class DGCNN(nn.Module):
 
     def forward(self, g, z, node_id=None, edge_id=None):
         """
-
         Args:
-
             g(DGLGraph): the graph
             z(Tensor): node labeling tensor, shape [N, 1]
             node_id(Tensor, optional): node id tensor, shape [N, 1]

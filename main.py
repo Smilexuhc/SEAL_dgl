@@ -1,3 +1,4 @@
+import dgl
 from utils import parse_arguments
 from tqdm import tqdm
 from dgl import NID, EID
@@ -11,7 +12,7 @@ from logger import LightLogging
 import time
 
 
-def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
+def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32, total_graphs=None):
     model.train()
 
     total_loss = 0
@@ -25,7 +26,7 @@ def train(model, dataloader, loss_fn, optimizer, device, num_graphs=32):
         optimizer.step()
         total_loss += loss.item() * num_graphs
 
-    return total_loss / dataloader.total_graphs
+    return total_loss / total_graphs
 
 
 @torch.no_grad()
@@ -85,10 +86,18 @@ def main(args, print_fn=print):
     val_data = seal_data('valid')
     test_data = seal_data('test')
 
+    train_graphs = len(train_data.graph_list)
+
     # Set data loader
-    train_loader = SEALDataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers)
-    val_loader = SEALDataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers)
-    test_loader = SEALDataLoader(test_data, batch_size=args.batch_size, num_workers=args.num_workers)
+    if dgl.__version__[:5] >= '0.6.0':
+        from dgl.dataloading import GraphDataLoader
+        train_loader = GraphDataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers)
+        val_loader = GraphDataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers)
+        test_loader = GraphDataLoader(test_data, batch_size=args.batch_size, num_workers=args.num_workers)
+    else:
+        train_loader = SEALDataLoader(train_data, batch_size=args.batch_size, num_workers=args.num_workers)
+        val_loader = SEALDataLoader(val_data, batch_size=args.batch_size, num_workers=args.num_workers)
+        test_loader = SEALDataLoader(test_data, batch_size=args.batch_size, num_workers=args.num_workers)
 
     # set model
     if args.model == 'gcn':
@@ -132,7 +141,8 @@ def main(args, print_fn=print):
                      loss_fn=loss_fn,
                      optimizer=optimizer,
                      device=device,
-                     num_graphs=args.batch_size)
+                     num_graphs=args.batch_size,
+                     total_graphs=train_graphs)
         train_time = time.time()
         if epoch % args.eval_steps == 0:
             val_pos_pred, val_neg_pred = evaluate(model=model,

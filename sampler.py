@@ -30,26 +30,17 @@ class SEALDataLoader(object):
     """
     Data Loader of SEAL
     Attributes:
-        data(dict): dict of tensor
+        dataset(Dataset): dataset
         batch_size(int): size of batch
     """
 
-    def __init__(self, data, batch_size, num_workers=1, shuffle=True,
+    def __init__(self, dataset, batch_size, num_workers=1, shuffle=True,
                  drop_last=False, pin_memory=False):
-
-        if isinstance(data, dict):
-            graph_list = data['graph_list']
-            labels = data['labels']
-            dataset = GraphDataSet(graph_list, labels)
-        else:
-            raise ValueError("data type error")
-        self.total_graphs = len(data['graph_list'])
+        self.total_graphs = len(dataset)
         self.dataloader = DataLoader(dataset=dataset, collate_fn=self._collate, batch_size=batch_size, shuffle=shuffle,
-                                     num_workers=num_workers,
-                                     drop_last=drop_last, pin_memory=pin_memory)
+                                     num_workers=num_workers, drop_last=drop_last, pin_memory=pin_memory)
 
     def _collate(self, batch):
-
         batch_graphs, batch_labels = map(list, zip(*batch))
 
         batch_graphs = dgl.batch(batch_graphs)
@@ -157,12 +148,10 @@ class SEALSampler(object):
 
     def sample_subgraph(self, target_nodes):
         """
-
         Args:
             target_nodes(Tensor): Tensor of two target nodes
         Returns:
             subgraph(DGLGraph): subgraph
-
         """
         sample_nodes = [target_nodes]
         frontiers = target_nodes
@@ -289,12 +278,9 @@ class SEALData(object):
 
         if osp.exists(path):
             self.print_fn("Load existing processed {} files".format(split_type))
+            graph_list, data = dgl.load_graphs(path)
+            dataset = GraphDataSet(graph_list, data['labels'])
 
-            tmp = dgl.load_graphs(path)
-            data = {'graph_list': tmp[0]}
-            for k, v in tmp[1].items():
-                data[k] = v
-            return data
         else:
             self.print_fn("Processed {} files not exist.".format(split_type))
 
@@ -302,7 +288,7 @@ class SEALData(object):
             self.print_fn("Generate {} edges totally.".format(edges.size(0)))
 
             graph_list, labels = self.sampler(edges, labels)
-            data = {'graph_list': graph_list, 'labels': labels}
+            dataset = GraphDataSet(graph_list, labels)
             dgl.save_graphs(path, graph_list, {'labels': labels})
             self.print_fn("Save preprocessed subgraph to {}".format(path))
-            return data
+        return dataset
